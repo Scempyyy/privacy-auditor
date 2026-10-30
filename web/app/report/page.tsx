@@ -52,7 +52,8 @@ function ReportView() {
 
   // Permission search & filter state for Tab 1
   const [permSearch, setPermSearch] = useState("");
-  const [permFilter, setPermFilter] = useState<"all" | "unusual" | "review" | "expected" | "unclassified">("all");
+  const [permFilter, setPermFilter] = useState<"all" | "unusual" | "review" | "expected" | "unclassified" | "high_sensitivity">("all");
+  const [expandedPerm, setExpandedPerm] = useState<string | null>(null);
 
   // Attack surface filter state for Tab 3
   const [asFilterType, setAsFilterType] = useState<"all" | "activity" | "service" | "receiver" | "provider">("all");
@@ -111,6 +112,7 @@ function ReportView() {
       if (permFilter === "review") return p.category_classification === "Review";
       if (permFilter === "expected") return p.category_classification === "Expected";
       if (permFilter === "unclassified") return p.category_classification === "Unclassified" || p.risk === "Unclassified";
+      if (permFilter === "high_sensitivity") return p.risk === "Critical" || p.risk === "High";
       return true;
     });
   }, [report, permSearch, permFilter]);
@@ -484,18 +486,18 @@ function ReportView() {
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 text-xs">
-                  {(["all", "unusual", "review", "expected", "unclassified"] as const).map((f) => (
+                  {(["all", "unusual", "review", "expected", "high_sensitivity", "unclassified"] as const).map((f) => (
                     <button
                       key={f}
                       type="button"
                       onClick={() => setPermFilter(f)}
                       className={`px-2.5 py-1 rounded text-[11px] font-medium capitalize transition ${
                         permFilter === f
-                          ? "bg-purple-600 text-white"
+                          ? "bg-purple-600 text-white shadow-sm shadow-purple-900/50"
                           : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
                       }`}
                     >
-                      {f}
+                      {f === "high_sensitivity" ? "High Sensitivity" : f}
                     </button>
                   ))}
                 </div>
@@ -503,26 +505,89 @@ function ReportView() {
 
               <div className="permission-list">
                 {filteredPermissions.length > 0 ? (
-                  filteredPermissions.map((perm) => (
-                    <div className="permission-item" key={perm.name}>
-                      <div className="permission-top">
-                        <span className={`risk-mark ${perm.risk}`} />
-                        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                          <b className="truncate">{perm.group || perm.name.replace("android.permission.", "")}</b>
-                          {perm.grant_mechanism && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono">
-                              {perm.grant_mechanism}
+                  filteredPermissions.map((perm) => {
+                    const isExpanded = expandedPerm === perm.name;
+                    const revokeGuide = report.revoke_steps.find((r) => r.permission === perm.name);
+
+                    return (
+                      <div
+                        className="permission-item transition hover:bg-slate-900/30 rounded-lg p-2.5 my-1 border border-transparent hover:border-slate-800/80 cursor-pointer"
+                        key={perm.name}
+                        onClick={() => setExpandedPerm(isExpanded ? null : perm.name)}
+                      >
+                        <div className="permission-top">
+                          <span className={`risk-mark ${perm.risk}`} />
+                          <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                            <b className="truncate text-white font-medium">{perm.group || perm.name.replace("android.permission.", "")}</b>
+                            {perm.grant_mechanism && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono">
+                                {perm.grant_mechanism}
+                              </span>
+                            )}
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-900 text-slate-400 border border-slate-800 font-mono">
+                              Risk: {perm.risk}
                             </span>
-                          )}
+                          </div>
+                          <span className={`category-tag ${perm.category_classification.toLowerCase()}`}>
+                            {perm.category_classification}
+                          </span>
                         </div>
-                        <span className={`category-tag ${perm.category_classification.toLowerCase()}`}>
-                          {perm.category_classification}
-                        </span>
+                        <small className="font-mono text-[10px] text-slate-500 block truncate mt-1">{perm.name}</small>
+                        <p className="text-slate-300 text-xs mt-1 leading-relaxed">{perm.explanation}</p>
+
+                        {/* Detailed Expandable Inspection Panel */}
+                        {isExpanded && (
+                          <div
+                            className="mt-3 p-3 rounded-lg bg-[#0a0b12] border border-purple-900/30 text-xs font-mono space-y-2.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                              <div>
+                                <span className="text-slate-500 block text-[10px] uppercase">Category Fit Justification</span>
+                                <span className="text-slate-200">
+                                  {perm.category_classification === "Expected"
+                                    ? `Common baseline permission for ${report.category} apps.`
+                                    : perm.category_classification === "Review"
+                                    ? `Contextual permission — only warranted if specific ${report.category} features are used.`
+                                    : perm.category_classification === "Unusual"
+                                    ? `Atypical for ${report.category} applications; creates elevated privacy exposure.`
+                                    : "Unclassified custom or third-party permission."}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-slate-500 block text-[10px] uppercase">Revocation Support</span>
+                                <span className="text-emerald-400">
+                                  {perm.grant_mechanism === "runtime"
+                                    ? "Supported via Android Settings → App Permissions"
+                                    : perm.grant_mechanism === "special_app_access"
+                                    ? "Supported via Settings → Special App Access"
+                                    : "Install-time permission (cannot be revoked individually without uninstalling app)"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {perm.user_impact && (
+                              <div className="pt-2 border-t border-slate-800 text-[11px]">
+                                <span className="text-purple-400 font-semibold block text-[10px] uppercase">Privacy & Data Impact</span>
+                                <p className="text-slate-300 font-sans mt-0.5">{perm.user_impact}</p>
+                              </div>
+                            )}
+
+                            {revokeGuide && revokeGuide.steps.length > 0 && (
+                              <div className="pt-2 border-t border-slate-800 text-[11px] space-y-1">
+                                <span className="text-amber-400 font-semibold block text-[10px] uppercase">Step-by-Step Revocation</span>
+                                <ol className="list-decimal pl-4 space-y-1 text-slate-300 font-sans">
+                                  {revokeGuide.steps.map((st, sIdx) => (
+                                    <li key={sIdx}>{st}</li>
+                                  ))}
+                                </ol>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <small className="font-mono text-[10px] text-slate-500 block truncate">{perm.name}</small>
-                      <p>{perm.explanation}</p>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <p className="no-findings">No permissions match the selected filter.</p>
                 )}
@@ -620,6 +685,59 @@ function ReportView() {
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* Dedicated Permission Revocation Assistant Section */}
+          <section className="report-card p-6 space-y-4 border-emerald-900/40">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+              <div>
+                <div className="text-[10px] uppercase font-mono tracking-wider text-emerald-400 font-bold">
+                  User Remediation Action Center
+                </div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <IconShieldCheck size={20} className="text-emerald-400" />
+                  Permission Revocation Assistant
+                </h2>
+              </div>
+              <span className="text-xs font-mono text-slate-400">
+                Android 13+ / 14 / 15 Guidance
+              </span>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              If you have already installed or intend to install this application, follow these Android Settings instructions to revoke risky or unusual permissions.
+            </p>
+
+            {report.revoke_steps && report.revoke_steps.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                {report.revoke_steps.map((rev, rIdx) => (
+                  <div key={rIdx} className="p-4 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <b className="font-mono text-xs text-white">
+                        {rev.permission.replace("android.permission.", "")}
+                      </b>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">
+                        Revocable
+                      </span>
+                    </div>
+                    <ol className="list-decimal pl-4 space-y-1.5 text-xs text-slate-300">
+                      {rev.steps.map((step, sIdx) => (
+                        <li key={sIdx} className="leading-snug">{step}</li>
+                      ))}
+                    </ol>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-xl border border-slate-800 bg-[#0c0d16] text-xs text-slate-400 space-y-2">
+                <p>
+                  <strong>No high-risk revocable permissions detected.</strong>
+                </p>
+                <p>
+                  For standard permissions, navigate to: <code>Android Settings → Apps → {report.app_name || report.package_name} → Permissions</code>.
+                </p>
+              </div>
+            )}
           </section>
         </div>
       )}

@@ -1,20 +1,32 @@
 {
-  "name": "App",
-  "short_name": "App",
-  "description": "Agent-Native app starter ready to customize",
-  "start_url": "./",
-  "background_color": "#111111",
-  "theme_color": "#18181B",
+  "name": "Android Privacy Auditor",
+  "short_name": "PrivacyAudit",
+  "description": "Deterministic static privacy auditing, permission intelligence, and tracker detection for Android APKs.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#090910",
+  "theme_color": "#9d75ee",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml"
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     },
     {
-      "src": "icon-512.svg",
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
     }
-  ]
+  ],
+  "categories": ["utilities", "security", "privacy"],
+  "screenshots": []
 }

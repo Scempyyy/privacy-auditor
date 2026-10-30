@@ -1,12 +1,20 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Frame } from "@/components/Frame";
 
+export const viewport: Viewport = {
+  themeColor: "#9d75ee",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "Android Privacy Auditor",
-  description: "Deterministic static privacy auditing and tracker detection tool for Android APKs.",
+  description: "Deterministic static privacy auditing, permission intelligence, and tracker detection for Android APKs.",
+  manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
+    apple: "/icon-192.svg",
   },
 };
 

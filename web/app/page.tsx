@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   IconActivity,
@@ -47,11 +49,31 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="hero-visual" aria-label="Illustration of an app privacy analysis">
+        <div
+          className="hero-visual"
+          aria-label="Illustration of an app privacy analysis"
+          onPointerMove={(event) => {
+            if (event.pointerType === "touch") return;
+            const bounds = event.currentTarget.getBoundingClientRect();
+            const x = (event.clientX - bounds.left) / bounds.width;
+            const y = (event.clientY - bounds.top) / bounds.height;
+            event.currentTarget.style.setProperty("--tilt-x", `${(x - 0.5) * 8}deg`);
+            event.currentTarget.style.setProperty("--tilt-y", `${(0.5 - y) * 6}deg`);
+            event.currentTarget.style.setProperty("--light-x", `${x * 100}%`);
+            event.currentTarget.style.setProperty("--light-y", `${y * 100}%`);
+          }}
+          onPointerLeave={(event) => {
+            event.currentTarget.style.setProperty("--tilt-x", "0deg");
+            event.currentTarget.style.setProperty("--tilt-y", "0deg");
+            event.currentTarget.style.setProperty("--light-x", "50%");
+            event.currentTarget.style.setProperty("--light-y", "50%");
+          }}
+        >
           <div className="orbit orbit-one" />
           <div className="orbit orbit-two" />
           <div className="hero-core">
             <div className="core-grid" />
+            <div className="core-scanline" />
             <div className="core-icon">
               <IconShield size={48} stroke={1.5} />
             </div>

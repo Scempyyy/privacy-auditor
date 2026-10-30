@@ -74,6 +74,17 @@ def main():
             page = context.new_page()
 
             # ---------------------------------------------------------
+            # WORKFLOW PART 0: LANDING PAGE & VISUAL CORE
+            # ---------------------------------------------------------
+            print("0. Navigating to Landing Page (http://localhost:3000)...")
+            page.goto("http://localhost:3000", wait_until="load")
+            page.wait_for_selector("text=Know what your", timeout=15000)
+            page.wait_for_selector("text=Local-first APK review", timeout=15000)
+            ss0_path = SCREENSHOTS_DIR / "0_landing_page.png"
+            page.screenshot(path=str(ss0_path))
+            print(f"   -> Captured: {ss0_path} (Landing Page)")
+
+            # ---------------------------------------------------------
             # WORKFLOW PART 1: SCANNER & ANALYSIS REPORT
             # ---------------------------------------------------------
             print("1. Navigating to http://localhost:3000/scanner...")
@@ -83,6 +94,7 @@ def main():
 
             print("2. Selecting category 'App Store / Marketplace'...")
             page.select_option("select", value="app_store")
+            page.wait_for_selector("text=Category Baseline", timeout=5000)
             
             print(f"3. Uploading real Aptoide APK ({APTOIDE_PATH})...")
             file_input = page.locator("input[type='file']")
@@ -111,6 +123,26 @@ def main():
             ss2_path = SCREENSHOTS_DIR / "2_completed_scan.png"
             page.screenshot(path=str(ss2_path))
             print(f"   -> Captured: {ss2_path}")
+
+            # Expand a permission finding to verify detailed inspection panel
+            print("5b. Expanding high-sensitivity permission finding...")
+            perm_item = page.locator(".permission-item:has-text('SYSTEM_ALERT_WINDOW')").first
+            if perm_item.count() > 0:
+                perm_item.click()
+                time.sleep(0.5)
+            ss_perm_expanded = SCREENSHOTS_DIR / "feature_permission_expanded.png"
+            page.screenshot(path=str(ss_perm_expanded))
+            print(f"   -> Captured: {ss_perm_expanded} (Expanded Permission Panel)")
+
+            # Mobile viewport verification screenshot
+            print("5c. Capturing mobile viewport report on existing session...")
+            page.set_viewport_size({"width": 390, "height": 844})
+            time.sleep(0.5)
+            ss_mobile = SCREENSHOTS_DIR / "mobile_report_view.png"
+            page.screenshot(path=str(ss_mobile))
+            print(f"   -> Captured: {ss_mobile} (Mobile Responsive Viewport)")
+            page.set_viewport_size({"width": 1400, "height": 900})
+            time.sleep(0.5)
 
             # ---------------------------------------------------------
             # WORKFLOW PART 2: PRIVACY X-RAY & REALITY (CONSOLIDATED IN REPORT)

@@ -16,7 +16,12 @@ import {
   IconShieldCheck,
   IconTarget,
 } from "@tabler/icons-react";
-import { BenchmarkSuiteReport, DynamicSandboxStatusReport } from "@/lib/api";
+import {
+  BenchmarkSuiteReport,
+  DynamicSandboxStatusReport,
+  fetchBenchmarkSuiteApi,
+  fetchSandboxStatusApi,
+} from "@/lib/api";
 
 const STATIC_BENCHMARK_REPORT: BenchmarkSuiteReport = {
   total_cases: 5,
@@ -129,18 +134,12 @@ export default function BenchmarkLabPage() {
   async function fetchLiveBenchmark() {
     setLoading(true);
     try {
-      const [benchRes, sandRes] = await Promise.all([
-        fetch("http://127.0.0.1:8000/api/v1/benchmark"),
-        fetch("http://127.0.0.1:8000/api/v1/sandbox/status"),
+      const [benchData, sandData] = await Promise.all([
+        fetchBenchmarkSuiteApi(),
+        fetchSandboxStatusApi(),
       ]);
-      if (benchRes.ok) {
-        const data = await benchRes.json();
-        setBenchReport(data);
-      }
-      if (sandRes.ok) {
-        const sandData = await sandRes.json();
-        setSandboxStatus(sandData);
-      }
+      setBenchReport(benchData);
+      setSandboxStatus(sandData);
     } catch {
       // Keep static defaults if offline
     } finally {

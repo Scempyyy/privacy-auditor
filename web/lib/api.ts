@@ -598,6 +598,30 @@ export async function verifyPassportApi(
 }
 
 /**
+ * Fetch the ground-truth benchmark suite evaluation report.
+ */
+export async function fetchBenchmarkSuiteApi(): Promise<BenchmarkSuiteReport> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/benchmark`, {
+    method: "GET",
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Benchmark API error (${res.status})`);
+  return (await res.json()) as BenchmarkSuiteReport;
+}
+
+/**
+ * Fetch dynamic sandbox safety controls and environment status.
+ */
+export async function fetchSandboxStatusApi(): Promise<DynamicSandboxStatusReport> {
+  const res = await fetch(`${API_BASE_URL}/api/v1/sandbox/status`, {
+    method: "GET",
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Sandbox status API error (${res.status})`);
+  return (await res.json()) as DynamicSandboxStatusReport;
+}
+
+/**
  * Curated Demo Sample Report (Explicitly tagged as DEMO DATA).
  */
 export const DEMO_REPORT: AnalysisReport = {

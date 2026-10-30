@@ -201,6 +201,23 @@ export default function ScannerPage() {
               </select>
               <IconChevronDown size={17} />
             </div>
+            <div className="mt-2 p-2.5 rounded-lg bg-[#0c0d16] border border-slate-800 text-[11px] text-slate-300">
+              <span className="text-purple-400 font-semibold block text-[10px] uppercase font-mono">Category Baseline</span>
+              {category === "app_store" && "App Stores legitimately require install/update, package queries, and network access; location or camera are flagged as unusual."}
+              {category === "social" && "Social apps typically justify camera, microphone, photos/media, and notifications; background location or SMS require close review."}
+              {category === "messaging" && "Messaging apps justify contacts, microphone, camera, and network; broad filesystem access or device identifiers warrant review."}
+              {category === "finance" && "Finance apps require strong security, biometrics, and network; contacts, broad location, or microphone are heavily scrutinized."}
+              {category === "navigation" && "Navigation apps legitimately require fine and coarse GPS location; contacts or calendar are flagged as unusual."}
+              {category === "camera" || category === "photo_video" ? "Imaging tools justify camera and storage/photos; location, contacts, and phone state are unusual." : null}
+              {category === "utility" && "Utilities generally require minimal permissions; sensitive sensors, contacts, or location incur severe penalties."}
+              {category === "gaming" && "Games require audio, network, and storage; location, contacts, SMS, and camera are flagged as unusual."}
+              {category === "weather" && "Weather apps justify coarse or fine location; contacts, camera, or audio are flagged as unusual."}
+              {category === "shopping" && "Shopping apps justify network and camera for barcode scanning; contacts, SMS, or continuous background location are unusual."}
+              {category === "health_fitness" && "Health apps justify body sensors and physical activity; contacts, SMS, and phone state are unusual."}
+              {category === "productivity" && "Productivity tools justify calendar and document storage; fine location and SMS are flagged as unusual."}
+              {category === "education" && "Education apps justify network and media access; phone state and location are unusual."}
+              {category === "communication" && "Communication apps justify microphone, camera, and contacts; location or system alerts are flagged for review."}
+            </div>
             <small>
               Used by the deterministic scoring engine to compare declared permissions against
               baseline expectations for this category.
