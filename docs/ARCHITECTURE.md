@@ -101,3 +101,11 @@
 - **No Dynamic Execution**: APKs are parsed purely as static archive data and byte sequences; no Dalvik/ART virtual machine, ADB bridge, or emulator is ever invoked.
 - **Ephemeral Storage**: Uploaded files do not persist beyond the active request lifecycle.
 - **Explicit CORS**: The backend CORS middleware restricts accepted origins strictly to `http://localhost:3000` and `http://127.0.0.1:3000`.
+
+## 5. Backend API implementation
+
+`POST /api/v1/analyze` accepts multipart fields `file` (APK) and `category` (one of the category keys in `data/categories.json`). It returns a strict JSON report. Uploads are streamed to a private temporary directory, capped at 100 MiB, structurally checked as ZIP archives, parsed statically with Androguard, and removed on success or failure. Archives with unsafe paths, duplicate entries, symbolic links, excessive expansion, or suspicious compression ratios are rejected. No archive member is extracted to disk.
+
+Errors use `{"detail":"..."}`. Invalid uploads return 400, unknown categories return 422, and unexpected parse failures return a generic 500 response while internal details are logged locally. CORS permits only the two local frontend origins listed above. The API does not retain scan reports.
+
+Permission and category records include explanations and source links. `data/trackers.json` currently has no entries: tracker detections stay empty until independently verified signatures with attribution are curated. A signature finding, once configured, is evidence of embedded code and does not establish active tracking. Declared permissions likewise do not establish runtime use.

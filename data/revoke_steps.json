@@ -1,1 +1,17 @@
-{}
+{
+  "android.permission.CAMERA": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Camera.", "Choose Don't allow or Ask every time where available."]},
+  "android.permission.RECORD_AUDIO": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Microphone.", "Choose Don't allow or Ask every time where available."]},
+  "android.permission.ACCESS_FINE_LOCATION": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Location.", "Choose Don't allow, Ask every time, or Allow only while using the app."]},
+  "android.permission.ACCESS_COARSE_LOCATION": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Location.", "Choose Don't allow or Allow only while using the app; disable precise location if offered."]},
+  "android.permission.ACCESS_BACKGROUND_LOCATION": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Location.", "Remove Allow all the time; choose a more limited option or Don't allow."]},
+  "android.permission.READ_CONTACTS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Contacts.", "Choose Don't allow."]},
+  "android.permission.WRITE_CONTACTS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Contacts.", "Choose Don't allow."]},
+  "android.permission.READ_SMS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then SMS.", "Choose Don't allow."]},
+  "android.permission.SEND_SMS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then SMS.", "Choose Don't allow."]},
+  "android.permission.READ_CALL_LOG": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Call logs.", "Choose Don't allow."]},
+  "android.permission.READ_PHONE_STATE": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Phone.", "Choose Don't allow."]},
+  "android.permission.READ_EXTERNAL_STORAGE": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Photos and videos or Files.", "Choose Don't allow or select limited access where available."]},
+  "android.permission.WRITE_EXTERNAL_STORAGE": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Files.", "Choose Don't allow where available."]},
+  "android.permission.BLUETOOTH_CONNECT": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Nearby devices.", "Choose Don't allow."]},
+  "android.permission.SYSTEM_ALERT_WINDOW": {"steps": ["Open Settings.", "Tap Apps, then Special app access.", "Tap Display over other apps.", "Select the app and turn off permission."]}
+}

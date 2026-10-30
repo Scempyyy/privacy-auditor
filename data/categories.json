@@ -1,1 +1,10 @@
-{}
+{
+  "utility": {"permissions": {"android.permission.INTERNET": "Review", "android.permission.ACCESS_NETWORK_STATE": "Expected", "android.permission.CAMERA": "Review", "android.permission.ACCESS_FINE_LOCATION": "Unusual", "android.permission.READ_CONTACTS": "Unusual"}},
+  "camera": {"permissions": {"android.permission.CAMERA": "Expected", "android.permission.RECORD_AUDIO": "Review", "android.permission.INTERNET": "Review", "android.permission.ACCESS_FINE_LOCATION": "Unusual"}},
+  "navigation": {"permissions": {"android.permission.ACCESS_FINE_LOCATION": "Expected", "android.permission.ACCESS_COARSE_LOCATION": "Expected", "android.permission.INTERNET": "Expected", "android.permission.ACCESS_NETWORK_STATE": "Expected"}},
+  "social": {"permissions": {"android.permission.CAMERA": "Review", "android.permission.RECORD_AUDIO": "Review", "android.permission.READ_CONTACTS": "Review", "android.permission.ACCESS_FINE_LOCATION": "Review", "android.permission.INTERNET": "Expected"}},
+  "finance": {"permissions": {"android.permission.CAMERA": "Review", "android.permission.INTERNET": "Expected", "android.permission.ACCESS_NETWORK_STATE": "Expected", "android.permission.READ_SMS": "Review"}},
+  "weather": {"permissions": {"android.permission.ACCESS_COARSE_LOCATION": "Expected", "android.permission.ACCESS_FINE_LOCATION": "Review", "android.permission.INTERNET": "Expected", "android.permission.ACCESS_NETWORK_STATE": "Expected"}},
+  "photo_video": {"permissions": {"android.permission.CAMERA": "Expected", "android.permission.RECORD_AUDIO": "Review", "android.permission.READ_EXTERNAL_STORAGE": "Review", "android.permission.WRITE_EXTERNAL_STORAGE": "Review"}},
+  "messaging": {"permissions": {"android.permission.CAMERA": "Review", "android.permission.RECORD_AUDIO": "Review", "android.permission.READ_CONTACTS": "Review", "android.permission.READ_SMS": "Review", "android.permission.SEND_SMS": "Review", "android.permission.INTERNET": "Expected"}}
+}
