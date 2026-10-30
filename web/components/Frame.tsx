@@ -23,6 +23,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/xray", label: "Privacy X-Ray" },
   { href: "/radar", label: "Update Radar" },
   { href: "/passport", label: "Privacy Passport" },
+  { href: "/attack-surface", label: "Attack Surface" },
+  { href: "/trust-center", label: "Trust Center" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/methodology", label: "Methodology" },
 ];

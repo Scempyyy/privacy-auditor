@@ -84,6 +84,8 @@ class AnalysisReport(StrictModel):
     limitations: list[str]
     privacy_xray: "PrivacyXRayReport | None" = None
     passport: "PrivacyPassport | None" = None
+    attack_surface: "AttackSurfaceReport | None" = None
+    nutrition_label: "PrivacyNutritionLabel | None" = None
 
 
 # ==================== FEATURE 1: PRIVACY X-RAY MODELS ====================
@@ -249,3 +251,61 @@ class PassportVerifyResponse(StrictModel):
     trusted_signer: bool
     message: str
     fingerprint: str | None = None
+
+
+# ==================== FEATURE 4: ATTACK SURFACE MODELS ====================
+
+class AndroidComponentFinding(StrictModel):
+    component_type: Literal["activity", "service", "receiver", "provider"]
+    name: str
+    is_exported: bool
+    permission: str | None = None
+    has_intent_filter: bool
+    grant_uri_permissions: bool = False
+    access_classification: Literal[
+        "externally_accessible",
+        "protected_by_permission",
+        "internal_non_exported",
+        "requires_review",
+        "not_assessed",
+    ]
+    risk_level: Literal["high", "medium", "low", "info"]
+    explanation: str
+    remediation_hint: str | None = None
+
+
+class AttackSurfaceReport(StrictModel):
+    total_components: int
+    exported_count: int
+    protected_count: int
+    unprotected_count: int
+    activities_count: int
+    services_count: int
+    receivers_count: int
+    providers_count: int
+    components: list[AndroidComponentFinding]
+    summary: str
+    limitations: list[str]
+
+
+# ==================== FEATURE 5: PRIVACY NUTRITION LABEL MODELS ====================
+
+class PrivacyNutritionSection(StrictModel):
+    category_id: str
+    title: str
+    status: Literal["active_evidence", "declared_capability", "not_detected"]
+    evidence_type: Literal["dex_api_callsite", "manifest_permission", "tracker_signature", "component_exposure", "none"]
+    badge_label: str
+    details: str
+    consequences_summary: str
+    suggested_action: str | None = None
+
+
+class PrivacyNutritionLabel(StrictModel):
+    package_name: str
+    app_name: str | None = None
+    score: int
+    grade: str
+    sections: list[PrivacyNutritionSection]
+    key_takeaways: list[str]
+    limitations_notice: str

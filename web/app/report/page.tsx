@@ -611,6 +611,72 @@ function ReportView() {
         </div>
       </section>
 
+      {/* Privacy Nutrition Label Card */}
+      {report.nutrition_label && (
+        <section className="report-card p-6 space-y-4 border-purple-900/40">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div>
+              <div className="text-[10px] uppercase font-mono tracking-wider text-purple-400 font-bold">
+                Consumer Privacy Transparency
+              </div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                Privacy Nutrition Label
+              </h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`px-2.5 py-1 rounded text-xs font-mono font-bold ${
+                report.nutrition_label.grade === "A" || report.nutrition_label.grade === "B" ? "bg-emerald-950 text-emerald-300 border border-emerald-800" :
+                report.nutrition_label.grade === "C" ? "bg-amber-950 text-amber-300 border border-amber-800" :
+                "bg-red-950 text-red-300 border border-red-800"
+              }`}>
+                Grade {report.nutrition_label.grade} ({report.nutrition_label.score}/100)
+              </span>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-mono"
+              >
+                Print / Save PDF
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {report.nutrition_label.sections.map((sec, sIdx) => (
+              <div
+                key={sIdx}
+                className="p-3.5 rounded-lg border border-slate-800/80 bg-[#0c0d16] space-y-2"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-semibold text-xs text-white">{sec.title}</span>
+                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                    sec.status === "not_detected" ? "bg-emerald-950 text-emerald-300" :
+                    sec.status === "declared_capability" ? "bg-amber-950 text-amber-300" :
+                    "bg-red-950 text-red-300"
+                  }`}>
+                    {sec.badge_label}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-snug">{sec.details}</p>
+                <p className="text-[10px] text-slate-500 italic leading-snug">{sec.consequences_summary}</p>
+                {sec.suggested_action && (
+                  <p className="text-[10px] text-purple-300/90 font-mono pt-1">
+                    Action: {sec.suggested_action}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
+            <span>Standardized privacy disclosure generated deterministically from APK bytecode & manifest.</span>
+            <Link href="/attack-surface" className="text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1">
+              Attack Surface Explorer <IconArrowRight size={13} />
+            </Link>
+          </div>
+        </section>
+      )}
+
       {/* Feature 1 & 3: Compact X-Ray & Passport Shortcuts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Privacy X-Ray Section */}

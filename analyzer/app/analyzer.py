@@ -10,8 +10,10 @@ from androguard.core.apk import APK
 from androguard.core.dex import DEX
 
 import hashlib
+from app.attack_surface import analyze_attack_surface
 from app.knowledge import DATA_DIR, load_knowledge
 from app.models import AnalysisReport, PermissionMetrics, SecurityFinding
+from app.nutrition import build_nutrition_label
 from app.passport import create_passport
 from app.scoring import calculate_score
 from app.xray import extract_dex_evidence
@@ -384,6 +386,21 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
     }
     passport = create_passport(report_dict_for_passport, dataset_fingerprints)
 
+    # Feature 4: Android Attack Surface Explorer
+    attack_surface = analyze_attack_surface(apk)
+
+    # Feature 5: Privacy Nutrition Label
+    nutrition_label = build_nutrition_label(
+        package_name=package_name,
+        app_name=app_name,
+        score=score,
+        grade=grade,
+        permissions=findings,
+        trackers=tracker_findings,
+        xray_findings=[f.model_dump(mode="json") for f in privacy_xray.findings],
+        attack_surface_dict=attack_surface.model_dump(mode="json"),
+    )
+
     return AnalysisReport(
         scan_id=uuid.uuid4().hex,
         package_name=package_name,
@@ -405,6 +422,8 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
         limitations=limitations,
         privacy_xray=privacy_xray,
         passport=passport,
+        attack_surface=attack_surface,
+        nutrition_label=nutrition_label,
     )
 
 

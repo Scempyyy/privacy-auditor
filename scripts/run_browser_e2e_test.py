@@ -177,9 +177,35 @@ def main():
             print(f"   -> Captured: {ss_passport} (Privacy Passport)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 5: DASHBOARD PERSISTENCE
+            # WORKFLOW PART 5: ATTACK SURFACE EXPLORER
             # ---------------------------------------------------------
-            print("13. Navigating to Dashboard to verify local persistence...")
+            print("13. Navigating to Attack Surface Explorer (/attack-surface)...")
+            page.goto("http://localhost:3000/attack-surface", wait_until="load")
+            page.wait_for_selector("text=Attack Surface Explorer", timeout=15000)
+            page.wait_for_selector("text=Component Breakdown", timeout=15000)
+            print("   -> Verified: Attack Surface Explorer loaded with manifest components")
+
+            ss_attack = SCREENSHOTS_DIR / "feature4_attack_surface.png"
+            page.screenshot(path=str(ss_attack), full_page=True)
+            print(f"   -> Captured: {ss_attack} (Attack Surface Explorer)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 6: TRUST CENTER
+            # ---------------------------------------------------------
+            print("14. Navigating to Trust Center (/trust-center)...")
+            page.goto("http://localhost:3000/trust-center", wait_until="load")
+            page.wait_for_selector("text=Zero Cloud Transmission", timeout=15000)
+            page.wait_for_selector("text=Local-First Architecture", timeout=15000)
+            print("   -> Verified: Trust Center guarantees and cryptographic verification guidance")
+
+            ss_trust = SCREENSHOTS_DIR / "feature5_trust_center.png"
+            page.screenshot(path=str(ss_trust), full_page=True)
+            print(f"   -> Captured: {ss_trust} (Trust Center)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 7: DASHBOARD PERSISTENCE
+            # ---------------------------------------------------------
+            print("15. Navigating to Dashboard to verify local persistence...")
             page.goto("http://localhost:3000/dashboard", wait_until="load")
             page.wait_for_selector("text=cm.aptoide.pt", timeout=15000)
             print("   -> Verified: Aptoide scan present in local scan history")

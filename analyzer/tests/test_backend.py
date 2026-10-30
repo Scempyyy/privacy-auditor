@@ -492,3 +492,63 @@ def test_radar_compare_two_versions_differential() -> None:
     assert "score_change" in data
     assert "old_score" in data["score_change"]
     assert "new_score" in data["score_change"]
+
+
+def test_attack_surface_extraction() -> None:
+    from app.analyzer import analyze_path
+    from pathlib import Path
+
+    real_apk_path = Path("/home/admin/Downloads/viruses-24hours.apk")
+    report = analyze_path(real_apk_path, category="app_store")
+
+    assert report.attack_surface is not None
+    as_report = report.attack_surface
+    assert as_report.total_components > 0
+    assert as_report.activities_count > 0
+    assert as_report.exported_count > 0
+    assert len(as_report.components) == as_report.total_components
+
+    # Verify at least one exported component is present
+    exported = [c for c in as_report.components if c.is_exported]
+    assert len(exported) > 0
+    # MainActivity is exported
+    main_acts = [c for c in exported if "MainActivity" in c.name]
+    assert len(main_acts) >= 1
+    assert main_acts[0].component_type == "activity"
+
+
+def test_privacy_nutrition_label_generation() -> None:
+    from app.analyzer import analyze_path
+    from pathlib import Path
+
+    real_apk_path = Path("/home/admin/Downloads/viruses-24hours.apk")
+    report = analyze_path(real_apk_path, category="app_store")
+
+    assert report.nutrition_label is not None
+    nl = report.nutrition_label
+    assert nl.package_name == "cm.aptoide.pt"
+    assert len(nl.sections) >= 3
+    assert len(nl.key_takeaways) > 0
+    assert nl.score == report.score
+    assert nl.grade == report.grade
+
+
+def test_zero_network_isolation_during_analysis(monkeypatch) -> None:
+    """Proves strictly zero outbound network/socket connections during analysis."""
+    import socket
+    from app.analyzer import analyze_path
+    from pathlib import Path
+
+    def forbidden_connect(*args, **kwargs):
+        raise RuntimeError("CRITICAL VIOLATION: Network connection attempted during local analysis!")
+
+    # Monkeypatch socket.socket.connect and create_connection
+    monkeypatch.setattr(socket.socket, "connect", forbidden_connect)
+    monkeypatch.setattr(socket.socket, "connect_ex", forbidden_connect)
+
+    real_apk_path = Path("/home/admin/Downloads/viruses-24hours.apk")
+    # Must succeed without any socket connect calls
+    report = analyze_path(real_apk_path, category="app_store")
+    assert report.package_name == "cm.aptoide.pt"
+    assert report.score > 0
+

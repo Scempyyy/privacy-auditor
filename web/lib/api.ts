@@ -254,6 +254,58 @@ export type PassportVerifyResponse = {
   fingerprint?: string | null;
 };
 
+// ==================== FEATURE 4: ATTACK SURFACE TYPES ====================
+
+export type AndroidComponentFinding = {
+  component_type: "activity" | "service" | "receiver" | "provider";
+  name: string;
+  is_exported: boolean;
+  permission?: string | null;
+  has_intent_filter: boolean;
+  grant_uri_permissions: boolean;
+  access_classification: "externally_accessible" | "protected_by_permission" | "internal_non_exported" | "requires_review" | "not_assessed";
+  risk_level: "high" | "medium" | "low" | "info";
+  explanation: string;
+  remediation_hint?: string | null;
+};
+
+export type AttackSurfaceReport = {
+  total_components: number;
+  exported_count: number;
+  protected_count: number;
+  unprotected_count: number;
+  activities_count: number;
+  services_count: number;
+  receivers_count: number;
+  providers_count: number;
+  components: AndroidComponentFinding[];
+  summary: string;
+  limitations: string[];
+};
+
+// ==================== FEATURE 5: PRIVACY NUTRITION LABEL TYPES ====================
+
+export type PrivacyNutritionSection = {
+  category_id: string;
+  title: string;
+  status: "active_evidence" | "declared_capability" | "not_detected";
+  evidence_type: "dex_api_callsite" | "manifest_permission" | "tracker_signature" | "component_exposure" | "none";
+  badge_label: string;
+  details: string;
+  consequences_summary: string;
+  suggested_action?: string | null;
+};
+
+export type PrivacyNutritionLabel = {
+  package_name: string;
+  app_name?: string | null;
+  score: number;
+  grade: string;
+  sections: PrivacyNutritionSection[];
+  key_takeaways: string[];
+  limitations_notice: string;
+};
+
 export type AnalysisReport = {
   scan_id: string;
   package_name: string;
@@ -275,6 +327,8 @@ export type AnalysisReport = {
   limitations: string[];
   privacy_xray?: PrivacyXRayReport | null;
   passport?: PrivacyPassport | null;
+  attack_surface?: AttackSurfaceReport | null;
+  nutrition_label?: PrivacyNutritionLabel | null;
   analyzed_at?: string;
   is_demo?: boolean;
 };
@@ -597,5 +651,121 @@ export const DEMO_REPORT: AnalysisReport = {
     "Static analysis inspects package manifests and DEX bytecode signatures; runtime network traffic is not observed.",
     "Tracker signature databases reflect known SDKs and may miss newly developed or obfuscated tracking libraries.",
   ],
+  attack_surface: {
+    total_components: 12,
+    exported_count: 4,
+    protected_count: 3,
+    unprotected_count: 1,
+    activities_count: 6,
+    services_count: 3,
+    receivers_count: 2,
+    providers_count: 1,
+    summary: "12 manifest components inspected. 1 component is exported without permission guards.",
+    limitations: ["Dynamic receiver registrations and runtime reflection are not assessed in manifest parsing."],
+    components: [
+      {
+        name: "com.example.social.MainActivity",
+        component_type: "activity",
+        is_exported: true,
+        permission: null,
+        has_intent_filter: true,
+        grant_uri_permissions: false,
+        access_classification: "externally_accessible",
+        risk_level: "low",
+        explanation: "Main application launch point exported via launcher intent filter.",
+        remediation_hint: "Standard entry point. Ensure sensitive data is not accepted via unvalidated launch intents.",
+      },
+      {
+        name: "com.example.social.ShareReceiver",
+        component_type: "receiver",
+        is_exported: true,
+        permission: null,
+        has_intent_filter: true,
+        grant_uri_permissions: false,
+        access_classification: "externally_accessible",
+        risk_level: "high",
+        explanation: "Exported broadcast receiver without permission protection. Any app can send intents to this receiver.",
+        remediation_hint: "Set android:exported=\"false\" or guard with android:permission with signature protection.",
+      },
+      {
+        name: "com.example.social.BackgroundSyncService",
+        component_type: "service",
+        is_exported: true,
+        permission: "android.permission.BIND_JOB_SERVICE",
+        has_intent_filter: true,
+        grant_uri_permissions: false,
+        access_classification: "protected_by_permission",
+        risk_level: "low",
+        explanation: "JobScheduler service guarded by android.permission.BIND_JOB_SERVICE.",
+        remediation_hint: "Properly guarded by system service permission.",
+      },
+      {
+        name: "com.example.social.DataProvider",
+        component_type: "provider",
+        is_exported: false,
+        permission: null,
+        has_intent_filter: false,
+        grant_uri_permissions: false,
+        access_classification: "internal_non_exported",
+        risk_level: "low",
+        explanation: "Internal private content provider.",
+        remediation_hint: null,
+      },
+    ],
+  },
+  nutrition_label: {
+    package_name: "com.example.social",
+    app_name: "Sample Social App",
+    score: 68,
+    grade: "D",
+    sections: [
+      {
+        category_id: "location",
+        title: "Precise Geographic Location",
+        status: "active_evidence",
+        evidence_type: "dex_api_callsite",
+        badge_label: "Active Dex Call",
+        details: "Bytecode calls LocationManager.getLastKnownLocation directly.",
+        consequences_summary: "Third-party ad networks or application logic can track your physical whereabouts.",
+        suggested_action: "Revoke location access in Android Settings if not needed for core function.",
+      },
+      {
+        category_id: "identity",
+        title: "Contact & Address Book Access",
+        status: "declared_capability",
+        evidence_type: "manifest_permission",
+        badge_label: "Permission Declared",
+        details: "Requests READ_CONTACTS permission in manifest.",
+        consequences_summary: "Allows reading names, phone numbers, and emails of personal contacts.",
+        suggested_action: "Grant only when actively syncing contacts.",
+      },
+      {
+        category_id: "trackers",
+        title: "Commercial Telemetry & Ad SDKs",
+        status: "active_evidence",
+        evidence_type: "tracker_signature",
+        badge_label: "2 SDKs Present",
+        details: "Google AdMob and Firebase Analytics signatures matched in DEX bytecode.",
+        consequences_summary: "Device identifiers and behavioral events transmitted to third-party ad networks.",
+        suggested_action: "Use a private DNS or tracker blocker to mitigate background telemetry.",
+      },
+      {
+        category_id: "attack_surface",
+        title: "IPC Attack Surface Exposure",
+        status: "active_evidence",
+        evidence_type: "component_exposure",
+        badge_label: "1 Unguarded Component",
+        details: "ShareReceiver is exported with no permission guard.",
+        consequences_summary: "Malicious apps installed on the device could invoke this component.",
+        suggested_action: "Developer should mark component exported=false.",
+      },
+    ],
+    key_takeaways: [
+      "App accesses precise physical location and contacts.",
+      "Embedded advertising and analytics libraries track user events.",
+      "At least 1 broadcast receiver is accessible to any other app on the device.",
+    ],
+    limitations_notice: "Generated via static analysis of manifest declarations, DEX bytecode references, and Exodus signatures.",
+  },
   analyzed_at: "Demo Example Fixture",
 };
