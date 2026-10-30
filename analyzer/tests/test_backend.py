@@ -196,7 +196,7 @@ def test_exodus_tracker_dataset_validity() -> None:
         assert "signature" in t and len(t["signature"]) > 0
         assert t["category"] in valid_categories
         assert "Exodus Privacy" in t["attribution"]
-        assert "AGPL" in t.get("license", "") or "CC" in t.get("license", "")
+        assert "ODbL" in t.get("license", "") or "DBCL" in t.get("license", "")
 
 
 def test_permissions_dataset_validity() -> None:
@@ -211,3 +211,25 @@ def test_permissions_dataset_validity() -> None:
         assert "protection_level" in p
         assert "source" in p
         assert p.get("verified_at") == "2026-10-30"
+
+
+def test_scoring_deduction_sum_matches_final_score() -> None:
+    from app.scoring import calculate_score
+    permissions = [
+        {"name": "p1", "risk": "Critical", "category_classification": "Review", "group": "G1"},
+        {"name": "p2", "risk": "High", "category_classification": "Expected", "group": "G1"},
+        {"name": "p3", "risk": "Moderate", "category_classification": "Unusual", "group": "G2"},
+        {"name": "p4", "risk": "Unclassified", "category_classification": "Unclassified", "group": None},
+    ]
+    trackers = [
+        {"tracker_id": "t1", "category": "advertising"},
+        {"tracker_id": "t2", "category": "profiling"},
+        {"tracker_id": "t3", "category": "analytics"},
+        {"tracker_id": "t4", "category": "crash_reporting"},
+    ]
+    score, grade, deductions = calculate_score(permissions, trackers, 28, True, False)
+    total_deductions = sum(d["points"] for d in deductions)
+    from decimal import Decimal, ROUND_HALF_UP
+    expected_score = max(0, min(100, int(Decimal(str(100 - total_deductions)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))))
+    assert score == expected_score
+    assert grade in {"Good", "Fair", "Risky", "Poor"}

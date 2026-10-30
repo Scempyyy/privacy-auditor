@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 """Builds validated data/trackers.json from Exodus Privacy upstream dataset.
-Attribution: Exodus Privacy (https://reports.exodus-privacy.eu.org/api/trackers)
-License: GNU AGPL v3 / CC BY-SA 4.0
+Primary Source: https://reports.exodus-privacy.eu.org/api/trackers
+Repository: https://github.com/Exodus-Privacy/exodus
+
+Licensing Distinction:
+- Exodus Platform Source Code: GNU AGPL v3
+- Exodus Database & API Dataset: Open Database License (ODbL) v1.0
+- Individual Database Contents: Database Contents License (DBCL) v1.0
+Attribution: Exodus Privacy (https://reports.exodus-privacy.eu.org)
 """
 import json
 import urllib.request
@@ -34,6 +40,7 @@ def main():
         payload = json.loads(resp.read().decode("utf-8"))
     
     raw_trackers = payload.get("trackers", {})
+    total_upstream_records = len(raw_trackers)
     output = {}
 
     for tid_str, raw in raw_trackers.items():
@@ -41,7 +48,7 @@ def main():
         code_sig = raw.get("code_signature", "").strip()
         if not name:
             continue
-        # Skip if code_signature is completely empty as static DEX detection cannot match it
+        # Skip records without a usable code signature (cannot be matched against DEX classes)
         if not code_sig:
             continue
             
@@ -59,8 +66,8 @@ def main():
             "website": raw.get("website", "").strip() or None,
             "description": raw.get("description", "").strip() or f"{name} third-party SDK.",
             "source": "Exodus Privacy",
-            "attribution": "Data provided by Exodus Privacy (https://reports.exodus-privacy.eu.org)",
-            "license": "GNU AGPL-3.0 / CC BY-SA 4.0",
+            "attribution": "Data provided by Exodus Privacy (https://reports.exodus-privacy.eu.org), licensed under ODbL 1.0 / DBCL 1.0.",
+            "license": "ODbL-1.0 / DBCL-1.0 (platform AGPL-3.0)",
             "verified_at": VERIFIED_AT,
         }
 
@@ -68,7 +75,8 @@ def main():
     with open(dest, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, sort_keys=True)
         
-    print(f"Successfully compiled {len(output)} verified tracker signatures into {dest}")
+    print(f"Successfully processed {total_upstream_records} upstream records.")
+    print(f"Compiled {len(output)} records with usable code signatures into {dest}")
 
 if __name__ == "__main__":
     main()

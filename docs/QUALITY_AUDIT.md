@@ -48,7 +48,8 @@ A comprehensive line-by-line audit of the backend analyzer, knowledge bases, sco
    - Add `app_store` and extended categories (`shopping`, `gaming`, `health_fitness`, `education`, `productivity`, `communication`) to `data/categories.json`.
    - Synchronize category selectors in `web/lib/api.ts`, `web/app/scanner/page.tsx`, `analyzer/app/main.py`.
 3. **Phase 4 (Trackers)**:
-   - Compile verified tracker signatures from Exodus Privacy with license and attribution metadata into `data/trackers.json`.
+   - Compile verified tracker signatures from Exodus Privacy into `data/trackers.json`.
+   - Licensing distinction: Exodus platform code is licensed under GNU AGPL v3; the tracker database and API dataset are licensed under the Open Database License (ODbL) v1.0 and Database Contents License (DBCL) v1.0 with attribution to Exodus Privacy.
    - Implement multi-DEX class normalization supporting both Dalvik descriptor and Java dotted formats.
    - Ensure truthful empty-state disclaimers when zero signatures match.
 4. **Phase 5 & 6 (Scoring & Security)**:

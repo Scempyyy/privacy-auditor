@@ -48,8 +48,9 @@
   - Added `app_store` ("App Store / Marketplace") and standard application categories (total 15 categories).
   - Defined functional baseline expectations preventing false-positive "Unusual" penalties.
 - [x] **Exodus Privacy Tracker Database**:
-  - Compiled and cached 428 verified tracker signatures from Exodus Privacy into `data/trackers.json` with AGPL-3.0/CC BY-SA 4.0 licensing and full attribution.
-  - Upgraded analyzer to inspect multi-DEX files (`classes.dex`, `classes2.dex`, etc.) with Dalvik and dotted package name matching.
+  - Compiled and cached 428 usable tracker signatures (from 432 upstream Exodus records) into `data/trackers.json`.
+  - Upstream licensing verified: ODbL 1.0 / DBCL 1.0 for dataset and AGPL-3.0 for platform source code, with attribution to Exodus Privacy.
+  - Upgraded analyzer to inspect multi-DEX files (`classes.dex`, `classes2.dex`, etc.) with boundary-respecting Dalvik and dotted package name matching.
   - Added truthful empty-state disclaimer when zero tracker signatures match.
 - [x] **Security Hygiene & Malware Boundary**:
   - Added checks for `android:allowBackup`, `android:debuggable`, `android:usesCleartextTraffic`, and target SDK with structured statuses (`finding_detected`, `checked_clean`, `platform_default`).
