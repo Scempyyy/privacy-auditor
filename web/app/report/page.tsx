@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -8,35 +8,71 @@ import {
   IconAlertTriangle,
   IconArrowDown,
   IconArrowRight,
-  IconBugOff,
+  IconCertificate,
   IconCheck,
   IconCircleCheck,
   IconClock,
   IconCloudOff,
+  IconCpu,
+  IconDownload,
   IconFileSearch,
-  IconHelpCircle,
+  IconFingerprint,
+  IconHierarchy2,
   IconInfoCircle,
+  IconKey,
   IconLock,
+  IconLockOpen,
+  IconPrinter,
+  IconQrcode,
   IconSearch,
   IconShieldCheck,
+  IconUpload,
   IconX,
-  IconCpu,
-  IconCertificate,
 } from "@tabler/icons-react";
-import { AnalysisReport, DEMO_REPORT, PermissionFinding } from "@/lib/api";
+import {
+  AnalysisReport,
+  DEMO_REPORT,
+  PermissionFinding,
+  PassportVerifyResponse,
+  verifyPassportApi,
+} from "@/lib/api";
 import { getActiveReport, getScanById } from "@/lib/history";
+
+export type ReportTab = "overview" | "reality" | "attack_surface" | "identity" | "passport";
 
 function ReportView() {
   const searchParams = useSearchParams();
   const demoParam = searchParams.get("demo");
   const scanIdParam = searchParams.get("scan_id");
+  const tabParam = searchParams.get("tab") as ReportTab | null;
 
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<ReportTab>(tabParam || "overview");
 
-  // Permission search & filter state
+  // Permission search & filter state for Tab 1
   const [permSearch, setPermSearch] = useState("");
   const [permFilter, setPermFilter] = useState<"all" | "unusual" | "review" | "expected" | "unclassified">("all");
+
+  // Attack surface filter state for Tab 3
+  const [asFilterType, setAsFilterType] = useState<"all" | "activity" | "service" | "receiver" | "provider">("all");
+  const [asFilterExported, setAsFilterExported] = useState<"all" | "exported" | "unguarded">("all");
+
+  // Reality filter state for Tab 2
+  const [realityFilter, setRealityFilter] = useState<"all" | "referenced" | "declared_only">("all");
+  const [expandedCap, setExpandedCap] = useState<string | null>(null);
+
+  // Passport state for Tab 5
+  const [passportVerifyResult, setPassportVerifyResult] = useState<PassportVerifyResponse | null>(null);
+  const [passportVerifyError, setPassportVerifyError] = useState("");
+  const [passportVerifyBusy, setPassportVerifyBusy] = useState(false);
+  const passportFileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   useEffect(() => {
     if (demoParam === "true" || scanIdParam === "demo" || scanIdParam === DEMO_REPORT.scan_id) {
@@ -60,7 +96,7 @@ function ReportView() {
     setLoading(false);
   }, [demoParam, scanIdParam]);
 
-  // Derived filtered permissions
+  // Filtered permissions for Tab 1
   const filteredPermissions = useMemo(() => {
     if (!report) return [];
     return report.permissions.filter((p) => {
@@ -71,18 +107,10 @@ function ReportView() {
 
       if (!matchesSearch) return false;
 
-      if (permFilter === "unusual") {
-        return p.category_classification === "Unusual";
-      }
-      if (permFilter === "review") {
-        return p.category_classification === "Review";
-      }
-      if (permFilter === "expected") {
-        return p.category_classification === "Expected";
-      }
-      if (permFilter === "unclassified") {
-        return p.category_classification === "Unclassified" || p.risk === "Unclassified";
-      }
+      if (permFilter === "unusual") return p.category_classification === "Unusual";
+      if (permFilter === "review") return p.category_classification === "Review";
+      if (permFilter === "expected") return p.category_classification === "Expected";
+      if (permFilter === "unclassified") return p.category_classification === "Unclassified" || p.risk === "Unclassified";
       return true;
     });
   }, [report, permSearch, permFilter]);
@@ -91,12 +119,11 @@ function ReportView() {
     return (
       <section className="page-wrap report-unavailable">
         <span className="spinner" />
-        <p className="mt-4 text-xs text-slate-400">Loading analysis report…</p>
+        <p className="mt-4 text-xs text-slate-400">Loading analysis workspace…</p>
       </section>
     );
   }
 
-  // Empty state if no confirmed report
   if (!report) {
     return (
       <section className="page-wrap report-unavailable">
@@ -127,7 +154,6 @@ function ReportView() {
   const isDemo = report.is_demo === true || report.scan_id === DEMO_REPORT.scan_id;
   const gradeTone = report.grade.toLowerCase();
 
-  // Consistent metric numbers
   const metrics = report.permission_metrics || {
     total_requested: report.permissions.length,
     classified: report.permissions.filter((p) => p.risk !== "Unclassified").length,
@@ -137,7 +163,6 @@ function ReportView() {
     high_risk: report.permissions.filter((p) => p.risk === "Critical" || p.risk === "High").length,
   };
 
-  // Domain deduction sums
   const permissionDeductionTotal = report.deductions
     .filter((d) => d.domain === "permissions")
     .reduce((sum, d) => sum + d.points, 0);
@@ -148,9 +173,56 @@ function ReportView() {
     .filter((d) => d.domain === "security")
     .reduce((sum, d) => sum + d.points, 0);
 
+  // Reality items
+  const realityItems = report.privacy_reality?.items || [];
+  const filteredRealityItems = realityItems.filter((it) => {
+    if (realityFilter === "referenced") return it.classification === "declared_and_referenced";
+    if (realityFilter === "declared_only") return it.classification === "declared_only_no_static_call";
+    return true;
+  });
+
+  // Attack surface components
+  const attackSurface = report.attack_surface;
+  const asComponents = attackSurface?.components || [];
+  const filteredAsComponents = asComponents.filter((c) => {
+    if (asFilterType !== "all" && c.component_type !== asFilterType) return false;
+    if (asFilterExported === "exported" && !c.is_exported) return false;
+    if (asFilterExported === "unguarded" && (!c.is_exported || Boolean(c.permission))) return false;
+    return true;
+  });
+
+  // Passport helpers
+  const passport = report.passport;
+  function downloadPassportJson() {
+    if (!passport) return;
+    const blob = new Blob([JSON.stringify(passport, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${passport.passport_id}-${passport.payload.package_name}-passport.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleVerifyExternalPassport(file: File) {
+    setPassportVerifyError("");
+    setPassportVerifyResult(null);
+    setPassportVerifyBusy(true);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await verifyPassportApi(parsed);
+      setPassportVerifyResult(res);
+    } catch (err: any) {
+      setPassportVerifyError(err?.message || "Failed to parse or verify passport file.");
+    } finally {
+      setPassportVerifyBusy(false);
+    }
+  }
+
   return (
-    <section className="page-wrap report-page">
-      {/* Prominent Demo Banner */}
+    <section className="page-wrap report-page space-y-6">
+      {/* Demo Banner */}
       {isDemo && (
         <div className="demo-banner" role="status">
           <IconInfoCircle size={17} />
@@ -160,12 +232,12 @@ function ReportView() {
         </div>
       )}
 
-      {/* Report Title Row */}
+      {/* Target Heading */}
       <div className="report-title-row">
         <div>
           <div className="eyebrow">
             <span className="eyebrow-dot" />
-            STATIC PRIVACY & AUDIT REPORT
+            UNIFIED PRIVACY INTELLIGENCE WORKSPACE
           </div>
           <h1>{report.app_name || report.package_name}</h1>
           <p className="package-line">
@@ -186,618 +258,893 @@ function ReportView() {
         </div>
       </div>
 
-      {/* Overview & Score Panel */}
-      <div className="report-overview">
-        <div className="score-panel">
-          <div className={`score-ring ${gradeTone}`}>
-            <div>
-              <strong>{report.score}</strong>
-              <small>OUT OF 100</small>
-            </div>
-          </div>
-          <div className="score-copy">
-            <span className={`grade-pill ${gradeTone}`}>{report.grade} Privacy Posture</span>
-            <h2>
-              {report.grade === "Good"
-                ? "Considered, proportionate permission demands."
-                : report.grade === "Fair"
-                ? "Some permissions or tracker SDKs warrant user attention."
-                : report.grade === "Risky"
-                ? "Elevated privacy exposure with sensitive permissions or tracking."
-                : "Excessive or disproportionate privacy demands."}
-            </h2>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Heuristic privacy assessment calculated from declared manifest permissions, category baseline expectations, recognized embedded tracker SDK signatures, and security hygiene.
-            </p>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Permissions: −{permissionDeductionTotal.toFixed(1)} pts
-              </span>
-              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Trackers: −{trackerDeductionTotal.toFixed(1)} pts
-              </span>
-              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
-                Security Hygiene: −{securityDeductionTotal.toFixed(1)} pts
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Risk Breakdown Summary */}
-        <div className="risk-summary">
-          <h3>Inspection metrics</h3>
-          <RiskMeter
-            label="High-risk permissions"
-            value={metrics.high_risk}
-            max={Math.max(metrics.total_requested, 1)}
-            tone="purple"
-          />
-          <RiskMeter
-            label="Unusual for category"
-            value={metrics.unusual}
-            max={Math.max(metrics.total_requested, 1)}
-            tone="purple"
-          />
-          <RiskMeter
-            label="Detected tracker SDKs"
-            value={report.trackers.length}
-            max={Math.max(report.trackers.length, 5)}
-            tone="cyan"
-          />
-          <RiskMeter
-            label="Unclassified permissions"
-            value={metrics.unclassified}
-            max={Math.max(metrics.total_requested, 1)}
-            tone="amber"
-          />
-        </div>
-      </div>
-
-      {/* Assessment Scope Notice (Including explicit Malware Scan Notice) */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 my-4">
-        <div className="p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/50">
-          <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 mb-1">
-            <IconLock size={15} /> 1. Permission Review
-          </div>
-          <p className="text-[11px] text-slate-400 leading-snug">
-            {metrics.classified} classified, {metrics.unclassified} unclassified, {metrics.unusual} unusual.
-          </p>
-        </div>
-
-        <div className="p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/50">
-          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 mb-1">
-            <IconActivity size={15} /> 2. Tracker Detection
-          </div>
-          <p className="text-[11px] text-slate-400 leading-snug">
-            {report.trackers.length} matching signatures from 428 curated Exodus records.
-          </p>
-        </div>
-
-        <div className="p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/50">
-          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mb-1">
-            <IconShieldCheck size={15} /> 3. Security Hygiene
-          </div>
-          <p className="text-[11px] text-slate-400 leading-snug">
-            Target SDK {report.target_sdk ?? "N/A"}, cleartext & debuggable verified.
-          </p>
-        </div>
-
-        <div className="p-3.5 rounded-lg border border-amber-800/50 bg-amber-950/20">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 mb-1">
-            <IconBugOff size={15} /> 4. Malware Status
-          </div>
-          <p className="text-[11px] text-amber-200/80 leading-snug font-medium">
-            Malware scan not performed. Static auditor only; not an antivirus engine.
-          </p>
-        </div>
-      </div>
-
-      {/* Metadata Strip */}
-      <div className="metadata-strip">
-        <MetaItem label="Package Identifier" value={report.package_name} />
-        <MetaItem
-          label="Version"
-          value={`${report.version_name || "N/A"} (${report.version_code ?? "N/A"})`}
-        />
-        <MetaItem
-          label="SDK Levels"
-          value={`Min ${report.min_sdk ?? "—"} · Target ${report.target_sdk ?? "—"}${
-            report.compile_sdk ? ` · Compile ${report.compile_sdk}` : ""
+      {/* 5-Tab Intelligence Navigation */}
+      <div className="flex border-b border-slate-800 gap-2 text-xs font-mono overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("overview")}
+          className={`px-4 py-2.5 rounded-t-lg font-semibold transition border-b-2 flex items-center gap-2 shrink-0 ${
+            activeTab === "overview"
+              ? "bg-[#12121d] border-purple-500 text-white"
+              : "border-transparent text-slate-400 hover:text-slate-200"
           }`}
-        />
-        <MetaItem label="Scan ID" value={report.scan_id} />
+        >
+          <IconShieldCheck size={16} /> Overview & Nutrition Label
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("reality")}
+          className={`px-4 py-2.5 rounded-t-lg font-semibold transition border-b-2 flex items-center gap-2 shrink-0 ${
+            activeTab === "reality"
+              ? "bg-[#12121d] border-purple-500 text-white"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <IconHierarchy2 size={16} /> Privacy Reality & Bytecode X-Ray
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("attack_surface")}
+          className={`px-4 py-2.5 rounded-t-lg font-semibold transition border-b-2 flex items-center gap-2 shrink-0 ${
+            activeTab === "attack_surface"
+              ? "bg-[#12121d] border-purple-500 text-white"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <IconAlertTriangle size={16} /> Attack Surface & IPC Exposure
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("identity")}
+          className={`px-4 py-2.5 rounded-t-lg font-semibold transition border-b-2 flex items-center gap-2 shrink-0 ${
+            activeTab === "identity"
+              ? "bg-[#12121d] border-purple-500 text-white"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <IconFingerprint size={16} /> Publisher Identity & Supply Chain
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("passport")}
+          className={`px-4 py-2.5 rounded-t-lg font-semibold transition border-b-2 flex items-center gap-2 shrink-0 ${
+            activeTab === "passport"
+              ? "bg-[#12121d] border-purple-500 text-white"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <IconCertificate size={16} /> Verifiable Privacy Passport
+        </button>
       </div>
 
-      {/* Main Grid: Permissions & Trackers/Security */}
-      <div className="report-grid">
-        {/* Declared Permissions Card */}
-        <section className="report-card permission-card">
-          <div className="section-title">
-            <div>
-              <span className="section-icon">
-                <IconLock size={17} />
-              </span>
-              <h2>Declared permissions</h2>
+      {/* =========================================================================
+          TAB 1: OVERVIEW & NUTRITION LABEL
+         ========================================================================= */}
+      {activeTab === "overview" && (
+        <div className="space-y-6">
+          {/* Score & Risk Summary */}
+          <div className="report-overview">
+            <div className="score-panel">
+              <div className={`score-ring ${gradeTone}`}>
+                <div>
+                  <strong>{report.score}</strong>
+                  <small>OUT OF 100</small>
+                </div>
+              </div>
+              <div className="score-copy">
+                <span className={`grade-pill ${gradeTone}`}>{report.grade} Privacy Posture</span>
+                <h2>
+                  {report.grade === "Good"
+                    ? "Considered, proportionate permission demands."
+                    : report.grade === "Fair"
+                    ? "Some permissions or tracker SDKs warrant user attention."
+                    : report.grade === "Risky"
+                    ? "Elevated privacy exposure with sensitive permissions or tracking."
+                    : "Excessive or disproportionate privacy demands."}
+                </h2>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Deterministic assessment calculated from declared manifest permissions, category baseline expectations, recognized embedded tracker SDK signatures, and security hygiene.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-2">
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                    Permissions: −{permissionDeductionTotal.toFixed(1)} pts
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                    Trackers: −{trackerDeductionTotal.toFixed(1)} pts
+                  </span>
+                  <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                    Security Hygiene: −{securityDeductionTotal.toFixed(1)} pts
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-400">
-                {filteredPermissions.length} of {report.permissions.length} shown
-              </span>
-              <span className="count-badge">{report.permissions.length}</span>
-            </div>
-          </div>
 
-          <p className="section-subtitle">
-            Permissions declared in AndroidManifest.xml. Sensitivity depends on capability access, runtime vs install-time protection, and functional fit with the <b>{report.category}</b> category.
-          </p>
-
-          {/* Search & Filter Controls */}
-          <div className="my-3 space-y-2">
-            <div className="relative">
-              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
-                <IconSearch size={14} />
-              </span>
-              <input
-                type="text"
-                placeholder="Search declared permissions..."
-                value={permSearch}
-                onChange={(e) => setPermSearch(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-md text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-purple-500"
+            {/* Risk Breakdown Summary */}
+            <div className="risk-summary">
+              <h3>Inspection metrics</h3>
+              <RiskMeter
+                label="High-risk permissions"
+                value={metrics.high_risk}
+                max={Math.max(metrics.total_requested, 1)}
+                tone="purple"
               />
-              {permSearch && (
-                <button
-                  type="button"
-                  onClick={() => setPermSearch("")}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-500 hover:text-slate-300"
-                >
-                  <IconX size={14} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setPermFilter("all")}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
-                  permFilter === "all"
-                    ? "bg-purple-600/30 text-purple-300 border border-purple-500/50"
-                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
-                }`}
-              >
-                All ({report.permissions.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPermFilter("unusual")}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
-                  permFilter === "unusual"
-                    ? "bg-purple-600/30 text-purple-300 border border-purple-500/50"
-                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
-                }`}
-              >
-                Unusual ({metrics.unusual})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPermFilter("review")}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
-                  permFilter === "review"
-                    ? "bg-amber-600/30 text-amber-300 border border-amber-500/50"
-                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
-                }`}
-              >
-                Review ({metrics.needing_review})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPermFilter("expected")}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
-                  permFilter === "expected"
-                    ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/50"
-                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
-                }`}
-              >
-                Expected ({report.permissions.filter((p) => p.category_classification === "Expected").length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setPermFilter("unclassified")}
-                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
-                  permFilter === "unclassified"
-                    ? "bg-slate-700/60 text-slate-200 border border-slate-600"
-                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
-                }`}
-              >
-                Unclassified ({metrics.unclassified})
-              </button>
+              <RiskMeter
+                label="Unusual for category"
+                value={metrics.unusual}
+                max={Math.max(metrics.total_requested, 1)}
+                tone="purple"
+              />
+              <RiskMeter
+                label="Detected tracker SDKs"
+                value={report.trackers.length}
+                max={Math.max(report.trackers.length, 5)}
+                tone="cyan"
+              />
+              <RiskMeter
+                label="Unclassified permissions"
+                value={metrics.unclassified}
+                max={Math.max(metrics.total_requested, 1)}
+                tone="purple"
+              />
             </div>
           </div>
 
-          <div className="permission-list">
-            {filteredPermissions.length > 0 ? (
-              filteredPermissions.map((perm) => {
-                const isUnclass =
-                  perm.category_classification === "Unclassified" ||
-                  perm.risk === "Unclassified" ||
-                  perm.risk === "Unknown";
+          {/* Privacy Nutrition Label Card */}
+          {report.nutrition_label && (
+            <section className="report-card p-6 space-y-4 border-purple-900/40">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                <div>
+                  <div className="text-[10px] uppercase font-mono tracking-wider text-purple-400 font-bold">
+                    Consumer Privacy Transparency
+                  </div>
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    Privacy Nutrition Label
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-1 rounded text-xs font-mono font-bold ${
+                    report.nutrition_label.grade === "A" || report.nutrition_label.grade === "B" ? "bg-emerald-950 text-emerald-300 border border-emerald-800" :
+                    report.nutrition_label.grade === "C" ? "bg-amber-950 text-amber-300 border border-amber-800" :
+                    "bg-red-950 text-red-300 border border-red-800"
+                  }`}>
+                    Grade {report.nutrition_label.grade} ({report.nutrition_label.score}/100)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-mono"
+                  >
+                    Print / Save PDF
+                  </button>
+                </div>
+              </div>
 
-                return (
-                  <div className="permission-item" key={perm.name}>
-                    <div className="permission-top">
-                      <span className={`risk-mark ${isUnclass ? "Unclassified" : perm.risk}`} />
-                      <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-                        <b className="truncate">
-                          {perm.group || perm.name.replace("android.permission.", "")}
-                        </b>
-                        {perm.grant_mechanism === "runtime" && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono">
-                            runtime
-                          </span>
-                        )}
-                        {perm.grant_mechanism === "special_app_access" && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60 font-mono">
-                            special app access
-                          </span>
-                        )}
-                        {perm.grant_mechanism === "signature_restricted" && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-950/80 text-red-300 border border-red-800/60 font-mono">
-                            signature
-                          </span>
-                        )}
-                        {perm.grant_mechanism === "install_time" && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60 font-mono">
-                            install time
-                          </span>
-                        )}
-                        {(perm.platform_protection_level || perm.protection_level) && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono" title="Platform Protection Level">
-                            {perm.platform_protection_level || perm.protection_level}
-                          </span>
-                        )}
-                      </div>
-                      <span
-                        className={`permission-state ${
-                          isUnclass
-                            ? "bg-slate-800/80 text-slate-300 border border-slate-700"
-                            : perm.category_classification.toLowerCase()
-                        }`}
-                      >
-                        {perm.category_classification}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {report.nutrition_label.sections.map((sec, sIdx) => (
+                  <div
+                    key={sIdx}
+                    className="p-3.5 rounded-lg border border-slate-800/80 bg-[#0c0d16] space-y-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-semibold text-xs text-white">{sec.title}</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
+                        sec.status === "not_detected" ? "bg-emerald-950 text-emerald-300" :
+                        sec.status === "declared_capability" ? "bg-amber-950 text-amber-300" :
+                        "bg-red-950 text-red-300"
+                      }`}>
+                        {sec.badge_label}
                       </span>
                     </div>
-                    <code>{perm.name}</code>
-                    <p className="mt-1">{perm.explanation}</p>
-                    {perm.user_impact && (
-                      <p className="text-[11px] text-slate-400 mt-1 italic">
-                        Impact: {perm.user_impact}
+                    <p className="text-[11px] text-slate-400 leading-snug">{sec.details}</p>
+                    <p className="text-[10px] text-slate-500 italic leading-snug">{sec.consequences_summary}</p>
+                    {sec.suggested_action && (
+                      <p className="text-[10px] text-purple-300/90 font-mono pt-1">
+                        Action: {sec.suggested_action}
                       </p>
                     )}
                   </div>
-                );
-              })
-            ) : (
-              <div className="py-6 text-center text-xs text-slate-500">
-                No permissions match the current search or filter criteria.
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Side Stack: Trackers & Security Hygiene */}
-        <div className="report-side-stack">
-          {/* Trackers */}
-          <section className="report-card">
-            <div className="section-title">
-              <div>
-                <span className="section-icon cyan-bg">
-                  <IconActivity size={17} />
-                </span>
-                <h2>Tracker findings</h2>
-              </div>
-              <span className="count-badge">{report.trackers.length}</span>
-            </div>
-
-            {report.trackers.length > 0 ? (
-              <div className="tracker-list">
-                {report.trackers.map((t) => (
-                  <div className="tracker-item" key={t.tracker_id || t.name}>
-                    <span className="tracker-symbol">
-                      <IconActivity size={16} />
-                    </span>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <b>{t.name}</b>
-                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
-                          {t.category}
-                        </span>
-                      </div>
-                      <small className="block mt-1 font-mono text-[10px] text-slate-400">
-                        Evidence: {t.evidence}
-                      </small>
-                      <small className="block text-[10px] text-slate-500">
-                        {t.attribution}
-                      </small>
-                    </div>
-                  </div>
                 ))}
               </div>
-            ) : (
-              <div className="mt-3 p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/40 text-xs">
-                <div className="flex items-center gap-2 text-emerald-400 font-medium mb-1">
-                  <IconCircleCheck size={16} /> No curated tracker signatures matched
+            </section>
+          )}
+
+          {/* Permissions & Trackers 2-Column Grid */}
+          <div className="report-grid">
+            {/* Left: Permission Audit */}
+            <section className="report-card">
+              <div className="section-title">
+                <div>
+                  <span className="section-icon purple-bg">
+                    <IconLock size={17} />
+                  </span>
+                  <h2>Declared permissions</h2>
                 </div>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  No signatures from the current curated database matched this APK. This does not prove the application has no tracking or telemetry. Database contains 428 curated tracker signatures from Exodus Privacy (updated Oct 30, 2026).
-                </p>
+                <span className="count-badge">{filteredPermissions.length} / {report.permissions.length}</span>
               </div>
-            )}
-          </section>
 
-          {/* Security Hygiene */}
-          <section className="report-card">
-            <div className="section-title">
-              <div>
-                <span className="section-icon amber-bg">
-                  <IconAlertTriangle size={17} />
-                </span>
-                <h2>Security hygiene</h2>
+              <div className="space-y-3 mb-4">
+                <div className="relative">
+                  <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    value={permSearch}
+                    onChange={(e) => setPermSearch(e.target.value)}
+                    placeholder="Search permissions..."
+                    className="w-full bg-[#0a0b12] border border-slate-800 rounded-lg pl-8 pr-8 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-600"
+                  />
+                  {permSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setPermSearch("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                    >
+                      <IconX size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 text-xs">
+                  {(["all", "unusual", "review", "expected", "unclassified"] as const).map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setPermFilter(f)}
+                      className={`px-2.5 py-1 rounded text-[11px] font-medium capitalize transition ${
+                        permFilter === f
+                          ? "bg-purple-600 text-white"
+                          : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <span className="count-badge">{report.security_findings.length}</span>
-            </div>
 
-            {report.security_findings.length > 0 ? (
-              <div className="space-y-2.5">
-                {report.security_findings.map((finding) => {
-                  const isClean = finding.severity === "clean" || finding.status === "checked_clean";
-                  const isWarn = finding.severity === "warning" || finding.status === "finding_detected";
-                  
-                  return (
+              <div className="permission-list">
+                {filteredPermissions.length > 0 ? (
+                  filteredPermissions.map((perm) => (
+                    <div className="permission-item" key={perm.name}>
+                      <div className="permission-top">
+                        <span className={`risk-mark ${perm.risk}`} />
+                        <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                          <b className="truncate">{perm.group || perm.name.replace("android.permission.", "")}</b>
+                          {perm.grant_mechanism && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono">
+                              {perm.grant_mechanism}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`category-tag ${perm.category_classification.toLowerCase()}`}>
+                          {perm.category_classification}
+                        </span>
+                      </div>
+                      <small className="font-mono text-[10px] text-slate-500 block truncate">{perm.name}</small>
+                      <p>{perm.explanation}</p>
+                    </div>
+                  ))
+                ) : (
+                  <p className="no-findings">No permissions match the selected filter.</p>
+                )}
+              </div>
+            </section>
+
+            {/* Right: Tracker & Hygiene */}
+            <div className="space-y-6">
+              <section className="report-card">
+                <div className="section-title">
+                  <div>
+                    <span className="section-icon cyan-bg">
+                      <IconActivity size={17} />
+                    </span>
+                    <h2>Detected trackers</h2>
+                  </div>
+                  <span className="count-badge">{report.trackers.length}</span>
+                </div>
+
+                {report.trackers.length > 0 ? (
+                  <div className="tracker-list">
+                    {report.trackers.map((t) => (
+                      <div className="tracker-item" key={t.tracker_id || t.name}>
+                        <span className="tracker-symbol"><IconActivity size={16} /></span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <b>{t.name}</b>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
+                              {t.category}
+                            </span>
+                          </div>
+                          <small className="block mt-1 font-mono text-[10px] text-slate-400">Evidence: {t.evidence}</small>
+                          <small className="block text-[10px] text-slate-500">{t.attribution}</small>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/40 text-xs">
+                    <div className="flex items-center gap-2 text-emerald-400 font-medium mb-1">
+                      <IconCircleCheck size={16} /> No curated tracker signatures matched
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      Scanned against 428 Exodus Privacy signatures.
+                    </p>
+                  </div>
+                )}
+              </section>
+
+              <section className="report-card">
+                <div className="section-title">
+                  <div>
+                    <span className="section-icon amber-bg">
+                      <IconAlertTriangle size={17} />
+                    </span>
+                    <h2>Security hygiene</h2>
+                  </div>
+                  <span className="count-badge">{report.security_findings.length}</span>
+                </div>
+                <div className="space-y-2.5">
+                  {report.security_findings.map((finding) => (
                     <div className="finding-item" key={finding.id || finding.title}>
-                      <span
-                        className={`severity-tag ${
-                          isClean ? "low bg-emerald-950 text-emerald-300 border-emerald-800/60" : isWarn ? "high" : "medium"
-                        }`}
-                      >
-                        {isClean ? "Pass" : isWarn ? "Notice" : "Info"}
+                      <span className={`severity-tag ${finding.severity === "clean" ? "low bg-emerald-950 text-emerald-300" : "high"}`}>
+                        {finding.severity === "clean" ? "Pass" : "Notice"}
                       </span>
                       <div>
                         <b>{finding.title}</b>
                         <p>{finding.detail}</p>
                       </div>
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          {/* Deductions Breakdown */}
+          <section className="report-card deduction-card">
+            <div className="section-title">
+              <div>
+                <span className="section-icon amber-bg"><IconArrowDown size={17} /></span>
+                <h2>How the score was calculated</h2>
               </div>
-            ) : (
-              <p className="no-findings">
-                <IconCircleCheck size={16} /> Manifest security settings follow standard defaults.
-              </p>
-            )}
+              <Link href="/trust-center" className="text-link">
+                Scoring specification <IconArrowRight size={14} />
+              </Link>
+            </div>
+            <div className="deduction-list">
+              {report.deductions.map((deduction, idx) => (
+                <div key={idx}>
+                  <span>
+                    <b>[{deduction.domain.toUpperCase()}]</b> {deduction.item} — {deduction.explanation}
+                  </span>
+                  <b>−{deduction.points.toFixed(deduction.points % 1 === 0 ? 0 : 2)} pts</b>
+                </div>
+              ))}
+            </div>
           </section>
         </div>
-      </div>
-
-      {/* Deduction Breakdown Card */}
-      <section className="report-card deduction-card">
-        <div className="section-title">
-          <div>
-            <span className="section-icon amber-bg">
-              <IconArrowDown size={17} />
-            </span>
-            <h2>How the score was calculated</h2>
-          </div>
-          <Link href="/methodology" className="text-link">
-            Scoring model specification <IconArrowRight size={14} />
-          </Link>
-        </div>
-
-        <div className="deduction-list">
-          {report.deductions.length > 0 ? (
-            report.deductions.map((deduction, idx) => (
-              <div key={idx}>
-                <span>
-                  <b>[{deduction.domain.toUpperCase()}]</b> {deduction.item} —{" "}
-                  {deduction.explanation}
-                </span>
-                <b>−{deduction.points.toFixed(deduction.points % 1 === 0 ? 0 : 2)} pts</b>
-              </div>
-            ))
-          ) : (
-            <div className="py-2 text-xs text-slate-400">
-              No deductions applied. Starting baseline of 100 points maintained.
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Privacy Nutrition Label Card */}
-      {report.nutrition_label && (
-        <section className="report-card p-6 space-y-4 border-purple-900/40">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
-            <div>
-              <div className="text-[10px] uppercase font-mono tracking-wider text-purple-400 font-bold">
-                Consumer Privacy Transparency
-              </div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Privacy Nutrition Label
-              </h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`px-2.5 py-1 rounded text-xs font-mono font-bold ${
-                report.nutrition_label.grade === "A" || report.nutrition_label.grade === "B" ? "bg-emerald-950 text-emerald-300 border border-emerald-800" :
-                report.nutrition_label.grade === "C" ? "bg-amber-950 text-amber-300 border border-amber-800" :
-                "bg-red-950 text-red-300 border border-red-800"
-              }`}>
-                Grade {report.nutrition_label.grade} ({report.nutrition_label.score}/100)
-              </span>
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-slate-300 hover:text-white text-xs font-mono"
-              >
-                Print / Save PDF
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {report.nutrition_label.sections.map((sec, sIdx) => (
-              <div
-                key={sIdx}
-                className="p-3.5 rounded-lg border border-slate-800/80 bg-[#0c0d16] space-y-2"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-xs text-white">{sec.title}</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${
-                    sec.status === "not_detected" ? "bg-emerald-950 text-emerald-300" :
-                    sec.status === "declared_capability" ? "bg-amber-950 text-amber-300" :
-                    "bg-red-950 text-red-300"
-                  }`}>
-                    {sec.badge_label}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-400 leading-snug">{sec.details}</p>
-                <p className="text-[10px] text-slate-500 italic leading-snug">{sec.consequences_summary}</p>
-                {sec.suggested_action && (
-                  <p className="text-[10px] text-purple-300/90 font-mono pt-1">
-                    Action: {sec.suggested_action}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div className="pt-2 flex items-center justify-between text-xs text-slate-400">
-            <span>Standardized privacy disclosure generated deterministically from APK bytecode & manifest.</span>
-            <Link href="/attack-surface" className="text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1">
-              Attack Surface Explorer <IconArrowRight size={13} />
-            </Link>
-          </div>
-        </section>
       )}
 
-      {/* Feature 1 & 3: Compact X-Ray & Passport Shortcuts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Privacy X-Ray Section */}
-        <section className="report-card p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/40">
-                <IconCpu size={18} />
-              </span>
-              <h2 className="text-sm font-bold text-white font-mono">Privacy X-Ray Evidence</h2>
-            </div>
-            <Link href="/xray" className="text-xs text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1">
-              Full X-Ray <IconArrowRight size={13} />
-            </Link>
-          </div>
-          <p className="text-xs text-slate-400">
-            Bytecode analysis inspected Dalvik classes for callsites associated with declared permissions.
-          </p>
-          <div className="flex items-center gap-3 font-mono text-xs pt-1">
-            <span className="px-2.5 py-1 rounded bg-[#101018] border border-emerald-900/40 text-emerald-300">
-              {report.privacy_xray?.permissions_with_references ?? 0} API reference(s) found
-            </span>
-            <span className="px-2.5 py-1 rounded bg-[#101018] border border-slate-800 text-slate-400">
-              {report.privacy_xray?.permissions_no_reference_observed ?? 0} unobserved
-            </span>
-          </div>
-        </section>
-
-        {/* Privacy Passport Section */}
-        <section className="report-card p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="p-1.5 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-800/40">
-                <IconCertificate size={18} />
-              </span>
-              <h2 className="text-sm font-bold text-white font-mono">Verifiable Privacy Passport</h2>
-            </div>
-            <Link href="/passport" className="text-xs text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1">
-              View Passport <IconArrowRight size={13} />
-            </Link>
-          </div>
-          <p className="text-xs text-slate-400">
-            Cryptographically signed audit certificate with canonical SHA-256 payload digest and QR reference.
-          </p>
-          <div className="flex items-center gap-3 font-mono text-xs pt-1">
-            <span className="px-2.5 py-1 rounded bg-[#101018] border border-purple-900/40 text-purple-300">
-              {report.passport?.is_signed ? "Ed25519 Signed" : "Hash Verified"}
-            </span>
-            <span className="text-slate-500 text-[11px] truncate max-w-[180px]">
-              ID: {report.passport?.passport_id ?? "N/A"}
-            </span>
-          </div>
-        </section>
-      </div>
-
-      {/* Bottom Grid: Revocation Steps & Limitations */}
-      <div className="report-bottom-grid">
-        {/* Permission Revocation Guidance */}
-        <section className="report-card">
-          <div className="section-title">
-            <div>
-              <span className="section-icon green-bg">
-                <IconShieldCheck size={17} />
-              </span>
-              <h2>Permission remediation</h2>
-            </div>
-          </div>
-          <p className="section-subtitle">
-            Step-by-step guidance to revoke invasive permissions in Android device settings:
-          </p>
-          <div className="space-y-4">
-            {report.revoke_steps.length > 0 ? (
-              report.revoke_steps.map((item, idx) => (
-                <div key={idx}>
-                  <b className="text-[10px] text-slate-200 block mb-1">
-                    {item.permission.replace("android.permission.", "")}
-                  </b>
-                  <ol className="revoke-list">
-                    {item.steps.map((step, sIdx) => (
-                      <li key={sIdx}>{step}</li>
-                    ))}
-                  </ol>
+      {/* =========================================================================
+          TAB 2: PRIVACY REALITY & BYTECODE X-RAY (CONSOLIDATED P03)
+         ========================================================================= */}
+      {activeTab === "reality" && (
+        <div className="space-y-6">
+          {/* 5-Layer Indicator Architecture Header */}
+          <div className="report-card p-6 space-y-4 border-purple-900/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[10px] uppercase font-mono tracking-wider text-purple-400 font-bold">
+                  Multi-Layer Evidence Correlation Engine
                 </div>
-              ))
-            ) : (
-              <div className="text-xs text-slate-400 py-2">
-                No high-risk permissions requiring revocation steps were detected.
+                <h2 className="text-xl font-bold text-white">Privacy Reality & Bytecode X-Ray</h2>
               </div>
-            )}
-          </div>
-        </section>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-1 rounded bg-[#0a0b12] border border-emerald-900/40 text-emerald-300 text-xs font-mono">
+                  {report.privacy_reality?.total_statically_referenced ?? 0} Bytecode Referenced
+                </span>
+                <span className="px-2.5 py-1 rounded bg-[#0a0b12] border border-amber-900/40 text-amber-300 text-xs font-mono">
+                  {report.privacy_reality?.total_declared_only ?? 0} Declared Only
+                </span>
+              </div>
+            </div>
 
-        {/* Limitations */}
-        <section className="report-card limitation-card">
-          <div className="section-title">
-            <div>
-              <span className="section-icon">
-                <IconInfoCircle size={17} />
-              </span>
-              <h2>Analysis limitations & disclaimers</h2>
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3 text-xs font-mono">
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-blue-900/40 space-y-1">
+                <span className="text-[10px] text-blue-400 block font-bold">LAYER 1: DECLARED</span>
+                <p className="text-[10px] text-slate-400 font-sans">Permissions in AndroidManifest.xml.</p>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-emerald-900/40 space-y-1">
+                <span className="text-[10px] text-emerald-400 block font-bold">LAYER 2: BYTECODE X-RAY</span>
+                <p className="text-[10px] text-slate-400 font-sans">DEX callsites referencing framework APIs.</p>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-purple-900/40 space-y-1">
+                <span className="text-[10px] text-purple-400 block font-bold">LAYER 3: DATA FLOW</span>
+                <p className="text-[10px] text-slate-400 font-sans">Source-to-sink taint analysis.</p>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-amber-900/40 space-y-1">
+                <span className="text-[10px] text-amber-400 block font-bold">LAYER 4: RUNTIME</span>
+                <p className="text-[10px] text-slate-400 font-sans">Dynamic sandbox observations.</p>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-slate-800 space-y-1">
+                <span className="text-[10px] text-slate-400 block font-bold">LAYER 5: INCONCLUSIVE</span>
+                <p className="text-[10px] text-slate-400 font-sans">Reflection or dynamic class loading.</p>
+              </div>
             </div>
           </div>
-          <ul className="space-y-2">
-            {report.limitations.map((limitation, idx) => (
-              <li key={idx} className="text-xs text-slate-400 leading-relaxed">
-                {limitation}
-              </li>
-            ))}
-          </ul>
-        </section>
-      </div>
-    </section>
-  );
-}
 
-function MetaItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <small>{label}</small>
-      <b title={value}>{value}</b>
-    </div>
+          {/* Filter Pills */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRealityFilter("all")}
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition ${
+                realityFilter === "all" ? "bg-purple-600 text-white" : "bg-slate-900 text-slate-400 border border-slate-800"
+              }`}
+            >
+              All Capabilities ({realityItems.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRealityFilter("referenced")}
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition ${
+                realityFilter === "referenced" ? "bg-emerald-600 text-white" : "bg-slate-900 text-slate-400 border border-slate-800"
+              }`}
+            >
+              Referenced in DEX ({report.privacy_reality?.total_statically_referenced ?? 0})
+            </button>
+            <button
+              type="button"
+              onClick={() => setRealityFilter("declared_only")}
+              className={`px-3 py-1 rounded text-xs font-mono font-medium transition ${
+                realityFilter === "declared_only" ? "bg-amber-600 text-white" : "bg-slate-900 text-slate-400 border border-slate-800"
+              }`}
+            >
+              Declared Only ({report.privacy_reality?.total_declared_only ?? 0})
+            </button>
+          </div>
+
+          {/* Reality Items with Granular Callsites */}
+          <div className="space-y-3">
+            {filteredRealityItems.map((item, idx) => {
+              const hasRef = item.layer2_statically_referenced;
+              const isExpanded = expandedCap === item.capability_name;
+
+              // Match corresponding X-Ray finding if available for deep callsite view
+              const xrayFinding = report.privacy_xray?.findings.find((f) => f.permission === item.capability_name);
+
+              return (
+                <div key={idx} className="p-4 rounded-xl border border-slate-800/80 bg-[#0d0d16] space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono text-sm font-semibold text-white">
+                          {item.capability_name.replace("android.permission.", "")}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-mono">({item.capability_name})</span>
+                      </div>
+                      <p className="text-xs text-slate-300">{item.verdict_explanation}</p>
+                    </div>
+
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-mono font-medium shrink-0 ${
+                      hasRef ? "bg-emerald-950 text-emerald-300 border border-emerald-800" : "bg-amber-950 text-amber-300 border border-amber-800"
+                    }`}>
+                      {hasRef ? `✓ Referenced (${item.callsites_count} calls)` : "Declared Only"}
+                    </span>
+                  </div>
+
+                  {/* 5-Layer Status Matrix */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-1 font-mono text-[10px]">
+                    <div className="p-2 rounded bg-[#0a0b12] border border-blue-900/30 flex justify-between">
+                      <span className="text-slate-400">L1 Declared:</span>
+                      <span className="text-blue-400 font-bold">YES</span>
+                    </div>
+                    <div className="p-2 rounded bg-[#0a0b12] border border-slate-800 flex justify-between">
+                      <span className="text-slate-400">L2 Bytecode:</span>
+                      <span className={hasRef ? "text-emerald-400 font-bold" : "text-slate-500"}>
+                        {hasRef ? "CONFIRMED" : "UNOBSERVED"}
+                      </span>
+                    </div>
+                    <div className="p-2 rounded bg-[#0a0b12] border border-slate-800 flex justify-between">
+                      <span className="text-slate-400">L3 Flow:</span>
+                      <span className="text-slate-500">OPTIONAL</span>
+                    </div>
+                    <div className="p-2 rounded bg-[#0a0b12] border border-slate-800 flex justify-between">
+                      <span className="text-slate-400">L4 Runtime:</span>
+                      <span className="text-slate-500">UNOBSERVED</span>
+                    </div>
+                    <div className="p-2 rounded bg-[#0a0b12] border border-slate-800 flex justify-between">
+                      <span className="text-slate-400">L5 Status:</span>
+                      <span className={hasRef ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>
+                        {hasRef ? "CORRELATED" : "REVIEW"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bytecode Callsites Details Accordion */}
+                  {hasRef && xrayFinding && xrayFinding.evidence.length > 0 && (
+                    <div className="pt-2 border-t border-slate-800">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedCap(isExpanded ? null : item.capability_name)}
+                        className="text-xs text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1"
+                      >
+                        {isExpanded ? "Hide Dalvik Callsite Evidence" : `View ${xrayFinding.evidence.length} Bytecode Callsite(s)`}
+                        <IconArrowRight size={12} className={isExpanded ? "rotate-90 transition" : "transition"} />
+                      </button>
+
+                      {isExpanded && (
+                        <div className="mt-3 space-y-2">
+                          {xrayFinding.evidence.map((ev, eIdx) => (
+                            <div key={eIdx} className="p-2.5 rounded bg-[#0a0b12] border border-slate-800 font-mono text-[11px] space-y-1">
+                              <div className="text-purple-300">
+                                <b>Caller: </b><code>{ev.caller_class}-&gt;{ev.caller_method}()</code>
+                              </div>
+                              <div className="text-slate-300">
+                                <b>Target API: </b><code>{ev.referenced_api_class}-&gt;{ev.referenced_method}()</code>
+                              </div>
+                              <div className="text-slate-500 text-[10px] flex gap-3">
+                                <span>DEX: {ev.dex_file}</span>
+                                <span>Op: {ev.instruction_name}</span>
+                                <span>Source: {ev.source}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 3: ATTACK SURFACE & IPC EXPOSURE (CONSOLIDATED P02)
+         ========================================================================= */}
+      {activeTab === "attack_surface" && (
+        <div className="space-y-6">
+          {attackSurface ? (
+            <>
+              {/* Attack Surface Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-slate-400">Total Components</div>
+                  <div className="text-xl font-bold font-mono text-white">{attackSurface.total_components}</div>
+                </div>
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-amber-400">Exported</div>
+                  <div className="text-xl font-bold font-mono text-amber-300">{attackSurface.exported_count}</div>
+                </div>
+                <div className="p-3.5 rounded-xl border border-red-900/30 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-red-400">Unguarded</div>
+                  <div className="text-xl font-bold font-mono text-red-400">{attackSurface.unprotected_count}</div>
+                </div>
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-blue-400">Activities</div>
+                  <div className="text-xl font-bold font-mono text-blue-300">{attackSurface.activities_count}</div>
+                </div>
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-purple-400">Services</div>
+                  <div className="text-xl font-bold font-mono text-purple-300">{attackSurface.services_count}</div>
+                </div>
+                <div className="p-3.5 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-cyan-400">Receivers/Providers</div>
+                  <div className="text-xl font-bold font-mono text-cyan-300">{attackSurface.receivers_count} / {attackSurface.providers_count}</div>
+                </div>
+              </div>
+
+              {/* Warning Callout */}
+              <div className={`p-4 rounded-xl border ${attackSurface.unprotected_count > 0 ? "bg-red-950/20 border-red-900/50" : "bg-emerald-950/20 border-emerald-900/40"}`}>
+                <div className="flex items-start gap-3">
+                  <span className={`p-2 rounded-lg ${attackSurface.unprotected_count > 0 ? "bg-red-900/40 text-red-300" : "bg-emerald-900/40 text-emerald-300"}`}>
+                    {attackSurface.unprotected_count > 0 ? <IconAlertTriangle size={20} /> : <IconShieldCheck size={20} />}
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white">
+                      {attackSurface.unprotected_count > 0
+                        ? `IPC Exposure Warning: ${attackSurface.unprotected_count} component(s) exported without permission authorization`
+                        : "No Unguarded Exported Components"}
+                    </h3>
+                    <p className="text-xs text-slate-300 leading-relaxed mt-1">
+                      {attackSurface.unprotected_count > 0
+                        ? "Any third-party app installed on the device can interact with these components. Protect with android:permission or set exported=false."
+                        : "All declared exported components have explicit permission constraints."}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Component Filter & List */}
+              <div className="report-card p-6 space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+                  <h3 className="text-base font-bold text-white">Component Inventory ({filteredAsComponents.length})</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="inline-flex rounded-lg bg-slate-900 p-1 border border-slate-800 text-xs font-mono">
+                      {(["all", "activity", "service", "receiver", "provider"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setAsFilterType(t)}
+                          className={`px-2.5 py-1 rounded capitalize ${asFilterType === t ? "bg-purple-600 text-white" : "text-slate-400"}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="inline-flex rounded-lg bg-slate-900 p-1 border border-slate-800 text-xs font-mono">
+                      <button
+                        type="button"
+                        onClick={() => setAsFilterExported("all")}
+                        className={`px-2 py-1 rounded ${asFilterExported === "all" ? "bg-slate-700 text-white" : "text-slate-400"}`}
+                      >
+                        All
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAsFilterExported("exported")}
+                        className={`px-2 py-1 rounded ${asFilterExported === "exported" ? "bg-amber-600 text-white" : "text-slate-400"}`}
+                      >
+                        Exported
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAsFilterExported("unguarded")}
+                        className={`px-2 py-1 rounded ${asFilterExported === "unguarded" ? "bg-red-600 text-white" : "text-slate-400"}`}
+                      >
+                        Unguarded
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {filteredAsComponents.map((comp, idx) => (
+                    <div key={idx} className="p-3.5 rounded-lg border border-slate-800/80 bg-[#0d0d16] space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono uppercase font-bold bg-blue-950 text-blue-300 border border-blue-800">
+                              {comp.component_type}
+                            </span>
+                            <span className="font-mono text-xs font-semibold text-slate-200">{comp.name}</span>
+                          </div>
+                          <p className="text-xs text-slate-400">{comp.explanation}</p>
+                          {comp.remediation_hint && (
+                            <p className="text-[11px] text-amber-400/90 font-mono">Remediation: {comp.remediation_hint}</p>
+                          )}
+                        </div>
+
+                        <span className={`px-2 py-0.5 rounded text-[11px] font-mono shrink-0 ${
+                          comp.is_exported ? (comp.permission ? "bg-amber-950 text-amber-300" : "bg-red-950 text-red-300") : "bg-slate-900 text-slate-400"
+                        }`}>
+                          {comp.is_exported ? (comp.permission ? "Exported (Guarded)" : "Exported (Unguarded)") : "Internal Private"}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="no-findings">No attack surface data recorded for this audit.</p>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 4: PUBLISHER IDENTITY & SUPPLY CHAIN (CONSOLIDATED P02)
+         ========================================================================= */}
+      {activeTab === "identity" && (
+        <div className="space-y-6">
+          {report.publisher_identity ? (
+            <>
+              {/* Identity Metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="p-4 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-slate-400">Signature Status</div>
+                  <div className="text-lg font-bold font-mono text-emerald-400 flex items-center gap-1.5">
+                    <IconCheck size={18} /> {report.publisher_identity.is_signed ? "Cryptographically Signed" : "Unsigned"}
+                  </div>
+                  <div className="text-[11px] text-slate-400">Integrity verified</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-slate-400">Signing Scheme</div>
+                  <div className="text-lg font-bold font-mono text-purple-300">
+                    {report.publisher_identity.v2_signing_enabled ? "v2 (Full APK)" : report.publisher_identity.v1_signing_enabled ? "v1 (JAR)" : "v3"}
+                  </div>
+                  <div className="text-[11px] text-slate-400">v1/v2/v3 support</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-slate-400">Native Libraries (.so)</div>
+                  <div className="text-lg font-bold font-mono text-cyan-300">
+                    {report.publisher_identity.native_libraries.length}
+                  </div>
+                  <div className="text-[11px] text-slate-400">ABIs: {report.publisher_identity.supported_abis.join(", ") || "None"}</div>
+                </div>
+
+                <div className="p-4 rounded-xl border border-slate-800 bg-[#0c0d16] space-y-1">
+                  <div className="text-[10px] uppercase font-mono text-slate-400">Archive Size & DEX</div>
+                  <div className="text-lg font-bold font-mono text-white">
+                    {report.publisher_identity.dex_files.length} DEX ({(report.publisher_identity.total_uncompressed_bytes / (1024 * 1024)).toFixed(1)} MB)
+                  </div>
+                  <div className="text-[11px] text-slate-400">{report.publisher_identity.total_files} total entries</div>
+                </div>
+              </div>
+
+              {/* Certificates */}
+              <div className="report-card p-6 space-y-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <IconCertificate size={18} className="text-purple-400" />
+                  X.509 Signing Certificates ({report.publisher_identity.certificates.length})
+                </h3>
+                <div className="space-y-3">
+                  {report.publisher_identity.certificates.map((cert, idx) => (
+                    <div key={idx} className="p-4 rounded-xl border border-slate-800/80 bg-[#0d0d16] space-y-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-500 block text-[10px] uppercase font-mono">Subject DN</span>
+                          <span className="text-slate-200 font-mono text-[11px] break-all">{cert.subject}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 block text-[10px] uppercase font-mono">Issuer DN</span>
+                          <span className="text-slate-200 font-mono text-[11px] break-all">{cert.issuer}</span>
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded bg-[#090a10] border border-slate-800 text-[11px] font-mono">
+                        <span className="text-slate-500">SHA-256: </span>
+                        <span className="text-emerald-400 break-all">{cert.sha256_fingerprint}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Native Libraries */}
+              <div className="report-card p-6 space-y-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <IconCpu size={18} className="text-cyan-400" />
+                  Native Libraries (.so) & Supply Chain Assets
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono">
+                  {report.publisher_identity.native_libraries.slice(0, 16).map((lib, lIdx) => (
+                    <div key={lIdx} className="p-2.5 rounded bg-[#0e0f1a] border border-slate-800 flex items-center justify-between">
+                      <span className="text-slate-300 truncate max-w-[220px]">{lib.name}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-900 text-slate-400">
+                        {lib.abi} ({(lib.size_bytes / 1024).toFixed(0)} KB)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="no-findings">No publisher identity information recorded.</p>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          TAB 5: CRYPTOGRAPHIC PRIVACY PASSPORT (CONSOLIDATED P02)
+         ========================================================================= */}
+      {activeTab === "passport" && (
+        <div className="space-y-6">
+          {passport ? (
+            <>
+              {/* Actions Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 bg-[#12121c] border border-purple-900/40 rounded-xl">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono text-purple-400">Passport ID:</span>
+                  <code className="text-xs font-mono text-white bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800/50">
+                    {passport.passport_id}
+                  </code>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={downloadPassportJson}
+                    className="px-3 py-1.5 rounded bg-purple-900/60 hover:bg-purple-800/80 text-xs text-white font-mono flex items-center gap-1.5"
+                  >
+                    <IconDownload size={14} /> Download JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-white font-mono flex items-center gap-1.5"
+                  >
+                    <IconPrinter size={14} /> Print Certificate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => passportFileInputRef.current?.click()}
+                    className="px-3 py-1.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-white font-mono flex items-center gap-1.5"
+                  >
+                    <IconUpload size={14} /> Verify External
+                  </button>
+                  <input
+                    ref={passportFileInputRef}
+                    type="file"
+                    accept=".json"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) handleVerifyExternalPassport(e.target.files[0]);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Verification Feedback Banner */}
+              {passportVerifyResult && (
+                <div className={`p-4 rounded-xl border flex items-start gap-3 text-xs font-mono ${
+                  passportVerifyResult.is_valid ? "bg-emerald-950/40 border-emerald-800/60 text-emerald-200" : "bg-red-950/40 border-red-800/60 text-red-200"
+                }`}>
+                  <IconCheck size={18} className="text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">{passportVerifyResult.message}</span>
+                    {passportVerifyResult.fingerprint && (
+                      <span className="text-[10px] text-slate-400">Signer Key Fingerprint: {passportVerifyResult.fingerprint}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Official Certificate Card */}
+              <div className="bg-[#0e0e17] border-2 border-purple-800/50 rounded-2xl p-8 space-y-6 shadow-2xl shadow-purple-950/30">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b border-purple-900/40 pb-6">
+                  <div className="space-y-1">
+                    <span className="text-xs font-mono text-purple-400 uppercase tracking-widest font-bold">
+                      Official Privacy Audit Passport
+                    </span>
+                    <h2 className="text-3xl font-extrabold text-white font-mono tracking-tight">
+                      {passport.payload.app_name || passport.payload.package_name}
+                    </h2>
+                    <div className="text-xs font-mono text-slate-400 flex flex-wrap gap-x-4">
+                      <span>Package: {passport.payload.package_name}</span>
+                      <span>Version: v{passport.payload.version_name || "1.0"}</span>
+                      <span>Category: {passport.payload.category}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-500 font-mono block">PRIVACY SCORE</span>
+                      <div className="text-4xl font-extrabold font-mono text-white">
+                        {passport.payload.score}
+                        <span className="text-sm font-normal text-slate-500">/100</span>
+                      </div>
+                      <span className="text-xs font-bold font-mono text-purple-300">Grade: {passport.payload.grade}</span>
+                    </div>
+                    {passport.qr_png_base64 && (
+                      <div className="bg-white p-1 rounded-lg border border-purple-900/50">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={passport.qr_png_base64} alt="Passport QR" className="w-20 h-20" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cryptographic Proof Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+                  <div className="p-3 rounded-lg bg-[#0a0b12] border border-slate-800 space-y-1">
+                    <span className="text-slate-500 block text-[10px]">CANONICAL SHA-256 DIGEST</span>
+                    <span className="text-purple-300 break-all">{passport.canonical_payload_sha256}</span>
+                  </div>
+                  <div className="p-3 rounded-lg bg-[#0a0b12] border border-slate-800 space-y-1">
+                    <span className="text-slate-500 block text-[10px]">ED25519 DIGITAL SIGNATURE</span>
+                    <span className="text-emerald-400 break-all">{passport.signature || "Unsigned Hash Verified"}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="no-findings">No privacy passport issued for this scan.</p>
+          )}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -832,7 +1179,7 @@ export default function ReportPage() {
       fallback={
         <section className="page-wrap report-unavailable">
           <span className="spinner" />
-          <p className="mt-4 text-xs text-slate-400">Loading analysis report…</p>
+          <p className="mt-4 text-xs text-slate-400">Loading analysis workspace…</p>
         </section>
       }
     >

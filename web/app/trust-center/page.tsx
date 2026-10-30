@@ -3,36 +3,40 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  IconActivity,
   IconArrowRight,
   IconCheck,
   IconCircleCheck,
   IconCloudOff,
   IconCpu,
   IconFileCheck,
+  IconFileSearch,
   IconFingerprint,
+  IconInfoCircle,
   IconKey,
   IconLock,
   IconNetworkOff,
   IconServer,
   IconShieldCheck,
+  IconSparkles,
   IconTerminal2,
 } from "@tabler/icons-react";
 
 export default function TrustCenterPage() {
-  const [activeTab, setActiveTab] = useState<"architecture" | "evidence" | "verification">("architecture");
+  const [activeTab, setActiveTab] = useState<"architecture" | "evidence" | "methodology" | "verification">("architecture");
 
   return (
     <section className="page-wrap space-y-8">
       {/* Hero Header */}
       <div className="space-y-3">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-800/40 text-emerald-300 text-xs font-mono">
-          <IconShieldCheck size={14} /> Zero Cloud Transmission • Air-Gapped Ready
+          <IconShieldCheck size={14} /> Zero Cloud Transmission • Air-Gapped Ready • Open Scoring Math
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-white">
-          Trust Center & Local-First Guarantees
+          Trust, Verification & Methodology
         </h1>
         <p className="text-slate-300 text-sm max-w-3xl leading-relaxed">
-          The Android Privacy Auditor was engineered with an absolute privacy premise: you should never have to sacrifice confidentiality to audit application security. We prove this mathematically and architecturally.
+          The Android Privacy Auditor was engineered with an absolute privacy premise: you should never have to sacrifice confidentiality to audit application security. We prove this mathematically, architecturally, and cryptographically.
         </p>
       </div>
 
@@ -43,7 +47,7 @@ export default function TrustCenterPage() {
             <IconNetworkOff size={18} /> Zero Outbound Network Requests
           </div>
           <p className="text-xs text-slate-400 leading-relaxed">
-            All analysis engines (manifest parsing, Dex bytecode inspection, signature matching) run completely in local memory on your machine.
+            All analysis engines (manifest parsing, DEX bytecode inspection, signature matching) run completely in local memory on your machine.
           </p>
         </div>
 
@@ -68,7 +72,7 @@ export default function TrustCenterPage() {
 
       {/* Interactive Tabs */}
       <div className="report-card p-6 space-y-6">
-        <div className="flex border-b border-slate-800 gap-4 text-xs font-mono">
+        <div className="flex border-b border-slate-800 gap-4 text-xs font-mono flex-wrap">
           <button
             type="button"
             onClick={() => setActiveTab("architecture")}
@@ -93,6 +97,17 @@ export default function TrustCenterPage() {
           </button>
           <button
             type="button"
+            onClick={() => setActiveTab("methodology")}
+            className={`pb-3 font-semibold transition border-b-2 ${
+              activeTab === "methodology"
+                ? "border-emerald-400 text-emerald-300"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            Scoring Methodology & Limitations
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveTab("verification")}
             className={`pb-3 font-semibold transition border-b-2 ${
               activeTab === "verification"
@@ -100,7 +115,7 @@ export default function TrustCenterPage() {
                 : "border-transparent text-slate-400 hover:text-slate-200"
             }`}
           >
-            Independent Verification
+            Independent OpenSSL CLI Verification
           </button>
         </div>
 
@@ -138,6 +153,53 @@ export default function TrustCenterPage() {
               ============================== 1 passed in 0.42s ==============================<br/>
               [STATUS] Sockets monitored: 0 outbound connections attempted.<br/>
               [RESULT] PASSED: Engine operates with 100% network isolation.
+            </div>
+          </div>
+        )}
+
+        {activeTab === "methodology" && (
+          <div className="space-y-5 text-xs text-slate-300 leading-relaxed">
+            <div>
+              <h2 className="text-sm font-bold text-white mb-1">Deterministic Scoring Mathematical Model</h2>
+              <p>
+                The privacy score is calculated deterministically from a baseline of 100 points:
+              </p>
+              <div className="p-3 my-2 rounded-lg bg-[#0a0b12] border border-slate-800 font-mono text-emerald-400 text-center text-xs">
+                Score = clamp(round(100 − PermissionsPenalty − TrackersPenalty − SecurityPenalty), 0, 100)
+              </div>
+              <p>
+                Every single deducted point is itemized with an explanation. No runtime LLMs or non-deterministic heuristics are in the scoring path.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-slate-800 space-y-1">
+                <b className="text-slate-200 block text-xs">1. Permission Deductions</b>
+                <p className="text-[11px] text-slate-400">
+                  Cross-referenced with category expectations (Expected = 0.5x, Review = 1.0x, Unusual = 1.5x penalty multipliers). Same-group permissions are deduplicated.
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-slate-800 space-y-1">
+                <b className="text-slate-200 block text-xs">2. Tracker Signatures</b>
+                <p className="text-[11px] text-slate-400">
+                  DEX bytecode is scanned against 428 Exodus Privacy signatures. 4 pts deducted per ad SDK, 2 pts per analytics SDK (domain max cap: 35 pts).
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-[#0e0f1a] border border-slate-800 space-y-1">
+                <b className="text-slate-200 block text-xs">3. Security Hygiene</b>
+                <p className="text-[11px] text-slate-400">
+                  Checks for cleartext HTTP traffic allowed, debuggable builds, and outdated target SDK versions.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-amber-950/20 border border-amber-900/40 text-amber-200/90 space-y-1">
+              <div className="flex items-center gap-1.5 font-bold text-xs text-amber-300">
+                <IconInfoCircle size={15} /> Inherent Static Analysis Boundaries
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                Static analysis cannot observe live encrypted network traffic, dynamic code loading, or runtime server configurations. Android Privacy Auditor is a privacy and manifest hygiene inspector—it does not perform antivirus execution scanning. A high privacy score reflects proportionate permissions and clean hygiene, not an absolute guarantee of safety.
+              </p>
             </div>
           </div>
         )}

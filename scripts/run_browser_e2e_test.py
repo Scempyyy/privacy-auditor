@@ -113,25 +113,25 @@ def main():
             print(f"   -> Captured: {ss2_path}")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 2: PRIVACY X-RAY
+            # WORKFLOW PART 2: PRIVACY X-RAY & REALITY (CONSOLIDATED IN REPORT)
             # ---------------------------------------------------------
-            print("6. Navigating to Privacy X-Ray (/xray)...")
+            print("6. Navigating to Privacy X-Ray (/xray) -> redirects to /report?tab=reality...")
             page.goto("http://localhost:3000/xray", wait_until="load")
-            page.wait_for_selector("text=Permission-to-Code Evidence", timeout=15000)
-            page.wait_for_selector("text=API References Discovered", timeout=15000)
-            print("   -> Verified: Privacy X-Ray loaded with DEX coverage & bytecode evidence")
+            page.wait_for_selector("text=Privacy Reality & Bytecode X-Ray", timeout=15000)
+            page.wait_for_selector("text=Multi-Layer Evidence Correlation Engine", timeout=15000)
+            print("   -> Verified: Privacy Reality & Bytecode X-Ray loaded with multi-layer evidence")
 
-            # Click on SYSTEM_ALERT_WINDOW finding to reveal callsite trace
+            # Inspect SYSTEM_ALERT_WINDOW bytecode callsite trace if present
             print("7. Inspecting SYSTEM_ALERT_WINDOW bytecode callsite trace...")
             saw_finding = page.locator("text=SYSTEM_ALERT_WINDOW")
             if saw_finding.count() > 0:
                 saw_finding.first.click()
                 time.sleep(0.5)
 
-            # Screenshot: Feature 1 - Privacy X-Ray
+            # Screenshot: Feature 1 - Privacy X-Ray & Reality
             ss_xray = SCREENSHOTS_DIR / "feature1_privacy_xray.png"
             page.screenshot(path=str(ss_xray), full_page=True)
-            print(f"   -> Captured: {ss_xray} (Privacy X-Ray)")
+            print(f"   -> Captured: {ss_xray} (Privacy X-Ray & Reality)")
 
             # ---------------------------------------------------------
             # WORKFLOW PART 3: PRIVACY UPDATE RADAR
@@ -164,11 +164,11 @@ def main():
             # ---------------------------------------------------------
             # WORKFLOW PART 4: PRIVACY PASSPORT
             # ---------------------------------------------------------
-            print("12. Navigating to Privacy Passport (/passport)...")
+            print("12. Navigating to Privacy Passport (/passport) -> redirects to /report?tab=passport...")
             page.goto("http://localhost:3000/passport", wait_until="load")
             page.wait_for_selector("text=Official Privacy Audit Passport", timeout=15000)
-            page.wait_for_selector("text=Ed25519 Signed", timeout=15000)
-            page.wait_for_selector("text=Canonical Payload SHA-256", timeout=15000)
+            page.wait_for_selector("text=ED25519 DIGITAL SIGNATURE", timeout=15000)
+            page.wait_for_selector("text=CANONICAL SHA-256 DIGEST", timeout=15000)
             print("   -> Verified: Privacy Passport rendered with Ed25519 signature and QR code")
 
             # Screenshot: Feature 3 - Privacy Passport
@@ -177,12 +177,11 @@ def main():
             print(f"   -> Captured: {ss_passport} (Privacy Passport)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 5: PRIVACY REALITY ENGINE
+            # WORKFLOW PART 5: PRIVACY REALITY ENGINE (TAB 2)
             # ---------------------------------------------------------
-            print("13. Navigating to Privacy Reality Engine (/reality)...")
+            print("13. Navigating to Privacy Reality Engine (/reality) -> redirects to /report?tab=reality...")
             page.goto("http://localhost:3000/reality", wait_until="load")
-            page.wait_for_selector("text=Privacy Reality Engine", timeout=15000)
-            page.wait_for_selector("text=Correlated Capabilities & Reality Status", timeout=15000)
+            page.wait_for_selector("text=Privacy Reality & Bytecode X-Ray", timeout=15000)
             print("   -> Verified: Privacy Reality Engine correlated declared vs static bytecode")
 
             ss_reality = SCREENSHOTS_DIR / "feature6_privacy_reality.png"
@@ -192,10 +191,10 @@ def main():
             # ---------------------------------------------------------
             # WORKFLOW PART 6: PUBLISHER IDENTITY & SUPPLY CHAIN
             # ---------------------------------------------------------
-            print("14. Navigating to Publisher Identity (/identity)...")
+            print("14. Navigating to Publisher Identity (/identity) -> redirects to /report?tab=identity...")
             page.goto("http://localhost:3000/identity", wait_until="load")
-            page.wait_for_selector("text=APK Publisher Identity", timeout=15000)
-            page.wait_for_selector("text=Cryptographically Signed", timeout=15000)
+            page.wait_for_selector("text=X.509 Signing Certificates", timeout=15000)
+            page.wait_for_selector("text=Native Libraries (.so) & Supply Chain Assets", timeout=15000)
             print("   -> Verified: Publisher Identity with X.509 cert and native .so libraries")
 
             ss_ident = SCREENSHOTS_DIR / "feature7_publisher_identity.png"
@@ -203,7 +202,7 @@ def main():
             print(f"   -> Captured: {ss_ident} (Publisher Identity)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 7: BENCHMARK LAB
+            # WORKFLOW PART 7: BENCHMARK LAB (SCENARIOS & SANDBOX)
             # ---------------------------------------------------------
             print("15. Navigating to Benchmark Lab (/benchmark)...")
             page.goto("http://localhost:3000/benchmark", wait_until="load")
@@ -216,13 +215,15 @@ def main():
             print(f"   -> Captured: {ss_bench} (Benchmark Lab)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 8: DYNAMIC SANDBOX
+            # WORKFLOW PART 8: DYNAMIC SANDBOX (REDIRECT & TAB)
             # ---------------------------------------------------------
-            print("16. Navigating to Dynamic Sandbox (/sandbox)...")
+            print("16. Navigating to Dynamic Sandbox (/sandbox) -> redirects to /benchmark...")
             page.goto("http://localhost:3000/sandbox", wait_until="load")
-            page.wait_for_selector("text=Isolated Dynamic Privacy Sandbox", timeout=15000)
+            # Click on Dynamic Sandbox Safety Harness tab
+            page.locator("text=Dynamic Sandbox Safety Harness").click()
             page.wait_for_selector("text=Safety Architecture & Environmental Controls", timeout=15000)
-            print("   -> Verified: Dynamic Sandbox status and safety invariants")
+            page.wait_for_selector("text=Mandatory Sandbox Safety Invariants", timeout=15000)
+            print("   -> Verified: Dynamic Sandbox status and safety invariants in Benchmark Lab")
 
             ss_sand = SCREENSHOTS_DIR / "feature9_dynamic_sandbox.png"
             page.screenshot(path=str(ss_sand), full_page=True)
@@ -231,10 +232,10 @@ def main():
             # ---------------------------------------------------------
             # WORKFLOW PART 9: ATTACK SURFACE EXPLORER
             # ---------------------------------------------------------
-            print("17. Navigating to Attack Surface Explorer (/attack-surface)...")
+            print("17. Navigating to Attack Surface Explorer (/attack-surface) -> redirects to /report?tab=attack_surface...")
             page.goto("http://localhost:3000/attack-surface", wait_until="load")
-            page.wait_for_selector("text=Attack Surface Explorer", timeout=15000)
-            page.wait_for_selector("text=Component Breakdown", timeout=15000)
+            page.wait_for_selector("text=Attack Surface & IPC Exposure", timeout=15000)
+            page.wait_for_selector("text=Component Inventory", timeout=15000)
             print("   -> Verified: Attack Surface Explorer loaded with manifest components")
 
             ss_attack = SCREENSHOTS_DIR / "feature4_attack_surface.png"
@@ -242,13 +243,17 @@ def main():
             print(f"   -> Captured: {ss_attack} (Attack Surface Explorer)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 10: TRUST CENTER
+            # WORKFLOW PART 10: TRUST CENTER & METHODOLOGY
             # ---------------------------------------------------------
             print("18. Navigating to Trust Center (/trust-center)...")
             page.goto("http://localhost:3000/trust-center", wait_until="load")
             page.wait_for_selector("text=Zero Cloud Transmission", timeout=15000)
             page.wait_for_selector("text=Local-First Architecture", timeout=15000)
-            print("   -> Verified: Trust Center guarantees and cryptographic verification guidance")
+
+            # Test methodology redirect
+            page.goto("http://localhost:3000/methodology", wait_until="load")
+            page.wait_for_selector("text=Trust, Verification & Methodology", timeout=15000)
+            print("   -> Verified: Trust Center & Methodology unified hub")
 
             ss_trust = SCREENSHOTS_DIR / "feature5_trust_center.png"
             page.screenshot(path=str(ss_trust), full_page=True)

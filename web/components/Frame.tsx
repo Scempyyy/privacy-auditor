@@ -20,17 +20,10 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Overview" },
   { href: "/scanner", label: "Scanner" },
-  { href: "/reality", label: "Privacy Reality" },
-  { href: "/xray", label: "Privacy X-Ray" },
   { href: "/radar", label: "Update Radar" },
-  { href: "/attack-surface", label: "Attack Surface" },
-  { href: "/identity", label: "Publisher Identity" },
   { href: "/benchmark", label: "Benchmark Lab" },
-  { href: "/sandbox", label: "Dynamic Sandbox" },
-  { href: "/passport", label: "Privacy Passport" },
-  { href: "/trust-center", label: "Trust Center" },
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/methodology", label: "Methodology" },
+  { href: "/trust-center", label: "Trust & Methodology" },
 ];
 
 export function Frame({ children }: { children: React.ReactNode }) {
