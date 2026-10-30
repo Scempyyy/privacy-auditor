@@ -264,9 +264,14 @@ function ReportView() {
                 ))}
               </div>
             ) : (
-              <p className="no-findings">
-                <IconCircleCheck size={16} /> No recognized tracker signatures detected.
-              </p>
+              <div className="mt-3 p-3 rounded-lg border border-slate-800/80 bg-slate-900/40 text-xs">
+                <div className="flex items-center gap-2 text-emerald-400 font-medium mb-1">
+                  <IconCircleCheck size={16} /> No curated tracker signatures matched
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  Static inspection did not match any known signatures from the curated database. Note that this is not proof that the application contains no trackers, telemetry, or analytics, as custom, modified, or obfuscated SDKs cannot be detected statically.
+                </p>
+              </div>
             )}
           </section>
 
