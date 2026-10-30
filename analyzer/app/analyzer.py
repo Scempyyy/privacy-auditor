@@ -9,9 +9,12 @@ from typing import Any
 from androguard.core.apk import APK
 from androguard.core.dex import DEX
 
-from app.knowledge import load_knowledge
+import hashlib
+from app.knowledge import DATA_DIR, load_knowledge
 from app.models import AnalysisReport, PermissionMetrics, SecurityFinding
+from app.passport import create_passport
 from app.scoring import calculate_score
+from app.xray import extract_dex_evidence
 
 logger = logging.getLogger(__name__)
 MAX_UPLOAD_BYTES = 100 * 1024 * 1024
@@ -344,6 +347,43 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
         "Referenced network security configuration resources are not dynamically resolved.",
     ]
 
+    # Calculate SHA-256 of the analyzed APK file
+    apk_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+
+    # Feature 1: Privacy X-Ray (Permission-to-bytecode evidence)
+    declared_perms_set = set(permissions)
+    privacy_xray = extract_dex_evidence(apk, declared_perms_set, knowledge.get("api_mappings", []))
+
+    # Calculate dataset fingerprints
+    dataset_fingerprints = {}
+    for ds_name in ("permissions.json", "trackers.json", "permission_api_mappings.json"):
+        ds_file = DATA_DIR / ds_name
+        if ds_file.exists():
+            dataset_fingerprints[ds_name] = hashlib.sha256(ds_file.read_bytes()).hexdigest()[:16]
+
+    # Feature 3: Privacy Passport (Cryptographically verifiable audit report)
+    report_dict_for_passport = {
+        "scan_id": apk_sha256[:16],
+        "apk_sha256": apk_sha256,
+        "package_name": package_name,
+        "app_name": app_name,
+        "version_name": apk.get_androidversion_name(),
+        "version_code": _optional_int(apk.get_androidversion_code()),
+        "min_sdk": _optional_int(apk.get_min_sdk_version()),
+        "target_sdk": target_sdk,
+        "compile_sdk": compile_sdk,
+        "category": category,
+        "score": score,
+        "grade": grade,
+        "deductions": deductions,
+        "permissions": findings,
+        "trackers": tracker_findings,
+        "security_findings": security,
+        "privacy_xray": privacy_xray.model_dump(mode="json"),
+        "limitations": limitations,
+    }
+    passport = create_passport(report_dict_for_passport, dataset_fingerprints)
+
     return AnalysisReport(
         scan_id=uuid.uuid4().hex,
         package_name=package_name,
@@ -363,6 +403,8 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
         deductions=deductions,
         revoke_steps=revocations,
         limitations=limitations,
+        privacy_xray=privacy_xray,
+        passport=passport,
     )
 
 

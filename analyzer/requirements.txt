@@ -8,3 +8,8 @@ python-multipart==0.0.26
 # Testing & Client
 pytest==9.2.0
 httpx==0.28.1
+
+# Security & Verification
+cryptography==50.0.2
+qrcode[pil]==8.2
+

@@ -93,6 +93,167 @@ export type PermissionMetrics = {
   high_risk: number;
 };
 
+// ==================== FEATURE 1: PRIVACY X-RAY TYPES ====================
+
+export type XRayEvidenceRecord = {
+  dex_file: string;
+  caller_class: string;
+  caller_method: string;
+  caller_descriptor?: string | null;
+  referenced_api_class: string;
+  referenced_method: string;
+  method_descriptor?: string | null;
+  instruction_name: string;
+  instruction_offset?: number | null;
+  permission: string;
+  description: string;
+  source: string;
+  evidence_level: "direct_method_reference" | "indirect_association" | "inconclusive";
+};
+
+export type PermissionXRayFinding = {
+  permission: string;
+  status: "api_reference_found" | "no_reference_observed" | "not_assessed";
+  evidence: XRayEvidenceRecord[];
+  summary: string;
+};
+
+export type PrivacyXRayReport = {
+  total_permissions_examined: number;
+  permissions_with_references: number;
+  permissions_no_reference_observed: number;
+  permissions_not_assessed: number;
+  findings: PermissionXRayFinding[];
+  dex_coverage: string[];
+  mapping_version: string;
+  limitations: string[];
+};
+
+// ==================== FEATURE 2: PRIVACY UPDATE RADAR TYPES ====================
+
+export type AppMetadataDelta = {
+  old_value: any;
+  new_value: any;
+  status: "unchanged" | "modified";
+};
+
+export type RadarMetadataDiff = {
+  package_name: AppMetadataDelta;
+  app_name: AppMetadataDelta;
+  version_name: AppMetadataDelta;
+  version_code: AppMetadataDelta;
+  min_sdk: AppMetadataDelta;
+  target_sdk: AppMetadataDelta;
+  compile_sdk: AppMetadataDelta;
+  apk_sha256: AppMetadataDelta;
+};
+
+export type PermissionChangeItem = {
+  name: string;
+  risk: string;
+  category_classification: string;
+  grant_mechanism?: string | null;
+  change_type: "added" | "removed" | "modified" | "unchanged";
+  details?: string | null;
+};
+
+export type TrackerChangeItem = {
+  tracker_id: string;
+  name: string;
+  category: string;
+  change_type: "added" | "removed";
+};
+
+export type SecurityChangeItem = {
+  id: string;
+  title: string;
+  old_status?: string | null;
+  new_status?: string | null;
+  status: "added_risk" | "resolved_risk" | "unchanged";
+  detail: string;
+};
+
+export type ScoreChange = {
+  old_score: number;
+  new_score: number;
+  difference: number;
+  old_grade: string;
+  new_grade: string;
+  explanation: string;
+};
+
+export type RadarComparisonReport = {
+  comparison_id: string;
+  package_name: string;
+  old_version_label: string;
+  new_version_label: string;
+  category: string;
+  metadata_diff: RadarMetadataDiff;
+  added_permissions: PermissionChangeItem[];
+  removed_permissions: PermissionChangeItem[];
+  retained_permissions_count: number;
+  new_trackers: TrackerChangeItem[];
+  removed_trackers: TrackerChangeItem[];
+  retained_trackers_count: number;
+  security_changes: SecurityChangeItem[];
+  score_change: ScoreChange;
+  old_deductions: Deduction[];
+  new_deductions: Deduction[];
+  summary_text: string;
+  knowledge_base_fingerprint: string;
+  limitations: string[];
+};
+
+// ==================== FEATURE 3: PRIVACY PASSPORT TYPES ====================
+
+export type CanonicalPassportPayload = {
+  passport_id: string;
+  issued_at_utc: string;
+  apk_sha256: string;
+  package_name: string;
+  app_name?: string | null;
+  version_name?: string | null;
+  version_code?: number | null;
+  min_sdk?: number | null;
+  target_sdk?: number | null;
+  compile_sdk?: number | null;
+  category: string;
+  score: number;
+  grade: string;
+  deductions: Deduction[];
+  permissions: PermissionFinding[];
+  trackers: TrackerFinding[];
+  security_findings: SecurityFinding[];
+  xray_summary: Record<string, number>;
+  analyzer_version: string;
+  commit_identifier?: string | null;
+  methodology_version: string;
+  dataset_fingerprints: Record<string, string>;
+  limitations: string[];
+};
+
+export type PrivacyPassport = {
+  schema_version: string;
+  passport_id: string;
+  issued_at_utc: string;
+  canonical_payload_sha256: string;
+  signature?: string | null;
+  public_key_fingerprint?: string | null;
+  is_signed: boolean;
+  qr_integrity_data: string;
+  qr_png_base64?: string | null;
+  payload: CanonicalPassportPayload;
+};
+
+export type PassportVerifyResponse = {
+  is_valid: boolean;
+  payload_hash_match: boolean;
+  signature_valid?: boolean | null;
+  trusted_signer: boolean;
+  message: string;
+  fingerprint?: string | null;
+};
+
 export type AnalysisReport = {
   scan_id: string;
   package_name: string;
@@ -112,6 +273,8 @@ export type AnalysisReport = {
   deductions: Deduction[];
   revoke_steps: RevokeStep[];
   limitations: string[];
+  privacy_xray?: PrivacyXRayReport | null;
+  passport?: PrivacyPassport | null;
   analyzed_at?: string;
   is_demo?: boolean;
 };
@@ -185,6 +348,92 @@ export async function analyzeApk(
   report.analyzed_at = new Date().toISOString();
   report.is_demo = false;
   return report;
+}
+
+/**
+ * Compare two versions of an application package.
+ */
+export async function compareApkVersions(
+  oldFile: File,
+  newFile: File,
+  category: string
+): Promise<RadarComparisonReport> {
+  const body = new FormData();
+  body.append("old_file", oldFile);
+  body.append("new_file", newFile);
+  body.append("category", category);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/compare`, {
+      method: "POST",
+      body,
+    });
+  } catch (err) {
+    throw new Error(
+      `Analyzer backend unreachable at ${API_BASE_URL}. Ensure the backend service is running.`
+    );
+  }
+
+  if (!response.ok) {
+    let errorMessage = `Comparison request failed (HTTP ${response.status}).`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.detail) {
+        errorMessage =
+          typeof errJson.detail === "string"
+            ? errJson.detail
+            : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      const text = await response.text();
+      if (text) errorMessage = text;
+    }
+    throw new Error(errorMessage);
+  }
+
+  return (await response.json()) as RadarComparisonReport;
+}
+
+/**
+ * Verify a Privacy Passport JSON payload.
+ */
+export async function verifyPassportApi(
+  passport: PrivacyPassport
+): Promise<PassportVerifyResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}/api/v1/passport/verify`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ passport }),
+    });
+  } catch (err) {
+    throw new Error(
+      `Analyzer backend unreachable at ${API_BASE_URL}. Ensure the backend service is running.`
+    );
+  }
+
+  if (!response.ok) {
+    let errorMessage = `Verification request failed (HTTP ${response.status}).`;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.detail) {
+        errorMessage =
+          typeof errJson.detail === "string"
+            ? errJson.detail
+            : JSON.stringify(errJson.detail);
+      }
+    } catch {
+      const text = await response.text();
+      if (text) errorMessage = text;
+    }
+    throw new Error(errorMessage);
+  }
+
+  return (await response.json()) as PassportVerifyResponse;
 }
 
 /**

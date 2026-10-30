@@ -1,5 +1,5 @@
 """Strict API response models."""
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -82,3 +82,170 @@ class AnalysisReport(StrictModel):
     deductions: list[Deduction]
     revoke_steps: list[RevokeStep]
     limitations: list[str]
+    privacy_xray: "PrivacyXRayReport | None" = None
+    passport: "PrivacyPassport | None" = None
+
+
+# ==================== FEATURE 1: PRIVACY X-RAY MODELS ====================
+
+class XRayEvidenceRecord(StrictModel):
+    dex_file: str
+    caller_class: str
+    caller_method: str
+    caller_descriptor: str | None = None
+    referenced_api_class: str
+    referenced_method: str
+    method_descriptor: str | None = None
+    instruction_name: str
+    instruction_offset: int | None = None
+    permission: str
+    description: str
+    source: str
+    evidence_level: Literal["direct_method_reference", "indirect_association", "inconclusive"] = "direct_method_reference"
+
+
+class PermissionXRayFinding(StrictModel):
+    permission: str
+    status: Literal["api_reference_found", "no_reference_observed", "not_assessed"]
+    evidence: list[XRayEvidenceRecord] = Field(default_factory=list)
+    summary: str
+
+
+class PrivacyXRayReport(StrictModel):
+    total_permissions_examined: int
+    permissions_with_references: int
+    permissions_no_reference_observed: int
+    permissions_not_assessed: int
+    findings: list[PermissionXRayFinding]
+    dex_coverage: list[str]
+    mapping_version: str
+    limitations: list[str]
+
+
+# ==================== FEATURE 2: PRIVACY UPDATE RADAR MODELS ====================
+
+class AppMetadataDelta(StrictModel):
+    old_value: Any
+    new_value: Any
+    status: Literal["unchanged", "modified"]
+
+
+class RadarMetadataDiff(StrictModel):
+    package_name: AppMetadataDelta
+    app_name: AppMetadataDelta
+    version_name: AppMetadataDelta
+    version_code: AppMetadataDelta
+    min_sdk: AppMetadataDelta
+    target_sdk: AppMetadataDelta
+    compile_sdk: AppMetadataDelta
+    apk_sha256: AppMetadataDelta
+
+
+class PermissionChangeItem(StrictModel):
+    name: str
+    risk: str
+    category_classification: str
+    grant_mechanism: str | None = None
+    change_type: Literal["added", "removed", "modified", "unchanged"]
+    details: str | None = None
+
+
+class TrackerChangeItem(StrictModel):
+    tracker_id: str
+    name: str
+    category: str
+    change_type: Literal["added", "removed"]
+
+
+class SecurityChangeItem(StrictModel):
+    id: str
+    title: str
+    old_status: str | None = None
+    new_status: str | None = None
+    status: Literal["added_risk", "resolved_risk", "unchanged"]
+    detail: str
+
+
+class ScoreChange(StrictModel):
+    old_score: int
+    new_score: int
+    difference: int
+    old_grade: str
+    new_grade: str
+    explanation: str
+
+
+class RadarComparisonReport(StrictModel):
+    comparison_id: str
+    package_name: str
+    old_version_label: str
+    new_version_label: str
+    category: str
+    metadata_diff: RadarMetadataDiff
+    added_permissions: list[PermissionChangeItem]
+    removed_permissions: list[PermissionChangeItem]
+    retained_permissions_count: int
+    new_trackers: list[TrackerChangeItem]
+    removed_trackers: list[TrackerChangeItem]
+    retained_trackers_count: int
+    security_changes: list[SecurityChangeItem]
+    score_change: ScoreChange
+    old_deductions: list[Deduction]
+    new_deductions: list[Deduction]
+    summary_text: str
+    knowledge_base_fingerprint: str
+    limitations: list[str]
+
+
+# ==================== FEATURE 3: PRIVACY PASSPORT MODELS ====================
+
+class CanonicalPassportPayload(StrictModel):
+    passport_id: str
+    issued_at_utc: str
+    apk_sha256: str
+    package_name: str
+    app_name: str | None = None
+    version_name: str | None = None
+    version_code: int | None = None
+    min_sdk: int | None = None
+    target_sdk: int | None = None
+    compile_sdk: int | None = None
+    category: str
+    score: int
+    grade: str
+    deductions: list[Deduction]
+    permissions: list[PermissionFinding]
+    trackers: list[TrackerFinding]
+    security_findings: list[SecurityFinding]
+    xray_summary: dict[str, int]
+    analyzer_version: str
+    commit_identifier: str | None = None
+    methodology_version: str
+    dataset_fingerprints: dict[str, str]
+    limitations: list[str]
+
+
+class PrivacyPassport(StrictModel):
+    schema_version: str = "1.0.0"
+    passport_id: str
+    issued_at_utc: str
+    canonical_payload_sha256: str
+    signature: str | None = None
+    public_key_fingerprint: str | None = None
+    is_signed: bool
+    qr_integrity_data: str
+    qr_png_base64: str | None = None
+    payload: CanonicalPassportPayload
+
+
+class PassportVerifyRequest(StrictModel):
+    passport: PrivacyPassport
+
+
+class PassportVerifyResponse(StrictModel):
+    is_valid: bool
+    payload_hash_match: bool
+    signature_valid: bool | None = None
+    trusted_signer: bool
+    message: str
+    fingerprint: str | None = None

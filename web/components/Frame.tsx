@@ -19,8 +19,11 @@ export type NavItem = {
 
 export const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Overview" },
-  { href: "/scanner", label: "APK scanner" },
-  { href: "/dashboard", label: "Scan history" },
+  { href: "/scanner", label: "Scanner" },
+  { href: "/xray", label: "Privacy X-Ray" },
+  { href: "/radar", label: "Update Radar" },
+  { href: "/passport", label: "Privacy Passport" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/methodology", label: "Methodology" },
 ];
 

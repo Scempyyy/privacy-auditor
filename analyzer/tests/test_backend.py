@@ -239,3 +239,256 @@ def test_scoring_deduction_sum_matches_final_score() -> None:
     expected_score = max(0, min(100, int(Decimal(str(100 - total_deductions)).quantize(Decimal("1"), rounding=ROUND_HALF_UP))))
     assert score == expected_score
     assert grade in {"Good", "Fair", "Risky", "Poor"}
+
+
+# ==================== NEW SIGNATURE FEATURES TEST SUITE ====================
+
+def test_permission_api_mappings_integrity() -> None:
+    from app.knowledge import load_knowledge
+    kb = load_knowledge()
+    mappings = kb["api_mappings"]
+    assert len(mappings) >= 30
+    for m in mappings:
+        assert "permission" in m and m["permission"].startswith(("android.permission.", "com.google.android."))
+        assert "api_class" in m and len(m["api_class"]) > 0
+        assert "evidence_level" in m and m["evidence_level"] == "direct_method_reference"
+        assert "source" in m and m["source"].startswith("http")
+
+
+def test_passport_creation_and_canonical_integrity() -> None:
+    from app.passport import create_passport, verify_passport, compute_payload_hash
+    from app.knowledge import DATA_DIR
+    import hashlib
+
+    report_mock = {
+        "scan_id": "test_scan_123",
+        "apk_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "package_name": "com.example.testapp",
+        "app_name": "TestApp",
+        "version_name": "1.0",
+        "version_code": 100,
+        "min_sdk": 24,
+        "target_sdk": 33,
+        "compile_sdk": 33,
+        "category": "communication",
+        "score": 85,
+        "grade": "Good",
+        "deductions": [{"domain": "permissions", "item": "READ_CONTACTS", "points": 15.0, "explanation": "Risk"}],
+        "permissions": [
+            {
+                "name": "android.permission.READ_CONTACTS",
+                "risk": "High",
+                "category_classification": "Review",
+                "explanation": "Access contacts",
+            }
+        ],
+        "trackers": [],
+        "security_findings": [],
+        "privacy_xray": {
+            "total_permissions_examined": 1,
+            "permissions_with_references": 1,
+            "permissions_no_reference_observed": 0,
+            "permissions_not_assessed": 0,
+        },
+        "limitations": ["Static analysis only"],
+    }
+    dataset_fps = {"permissions.json": "abc12345", "trackers.json": "def67890"}
+
+    # 1. Create passport
+    passport = create_passport(report_mock, dataset_fps, commit_id="test_commit")
+    assert passport.schema_version == "1.0.0"
+    assert passport.is_signed is True
+    assert passport.signature is not None
+    assert passport.public_key_fingerprint is not None
+    assert passport.qr_png_base64 is not None
+
+    # 2. Verify legitimate passport
+    resp = verify_passport(passport)
+    assert resp.is_valid is True
+    assert resp.payload_hash_match is True
+    assert resp.signature_valid is True
+    assert resp.trusted_signer is True
+
+    # 3. Tampering test: modify score
+    tampered_score = passport.model_copy(deep=True)
+    tampered_score.payload.score = 99
+    tampered_resp = verify_passport(tampered_score)
+    assert tampered_resp.is_valid is False
+    assert tampered_resp.payload_hash_match is False
+    assert "Tampering detected" in tampered_resp.message
+
+    # 4. Tampering test: modify permission finding
+    tampered_perm = passport.model_copy(deep=True)
+    tampered_perm.payload.permissions[0].risk = "Low"
+    tampered_perm_resp = verify_passport(tampered_perm)
+    assert tampered_perm_resp.is_valid is False
+    assert tampered_perm_resp.payload_hash_match is False
+
+    # 5. Tampering test: modify APK hash
+    tampered_apk = passport.model_copy(deep=True)
+    tampered_apk.payload.apk_sha256 = "0000000000000000000000000000000000000000000000000000000000000000"
+    tampered_apk_resp = verify_passport(tampered_apk)
+    assert tampered_apk_resp.is_valid is False
+    assert tampered_apk_resp.payload_hash_match is False
+
+    # 6. Tampering test: modify signature
+    tampered_sig = passport.model_copy(deep=True)
+    tampered_sig.signature = "aa" * len(bytes.fromhex(passport.signature))
+    tampered_sig_resp = verify_passport(tampered_sig)
+    assert tampered_sig_resp.is_valid is False
+    assert tampered_sig_resp.payload_hash_match is True  # payload is untouched
+    assert tampered_sig_resp.signature_valid is False
+
+    # 7. Untrusted key fingerprint test
+    untrusted_key = passport.model_copy(deep=True)
+    untrusted_key.public_key_fingerprint = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    untrusted_resp = verify_passport(untrusted_key)
+    assert untrusted_resp.is_valid is False
+    assert untrusted_resp.trusted_signer is False
+    assert "Untrusted signer" in untrusted_resp.message
+
+    # 8. Unsigned / Hash-only passport verification
+    unsigned_passport = passport.model_copy(deep=True)
+    unsigned_passport.is_signed = False
+    unsigned_passport.signature = None
+    unsigned_passport.public_key_fingerprint = None
+    unsigned_resp = verify_passport(unsigned_passport)
+    assert unsigned_resp.is_valid is True
+    assert unsigned_resp.payload_hash_match is True
+    assert unsigned_resp.signature_valid is None
+    assert "unsigned" in unsigned_resp.message.lower()
+
+
+def test_passport_verify_api_endpoint() -> None:
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.passport import create_passport
+
+    client = TestClient(app)
+    mock_report = {
+        "scan_id": "test_scan",
+        "apk_sha256": "1234567890abcdef",
+        "package_name": "com.test.passport",
+        "category": "utility",
+        "score": 90,
+        "grade": "Good",
+        "deductions": [],
+        "permissions": [],
+        "trackers": [],
+        "security_findings": [],
+        "limitations": [],
+    }
+    passport = create_passport(mock_report, {})
+
+    # Valid verify request
+    res = client.post("/api/v1/passport/verify", json={"passport": passport.model_dump(mode="json")})
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_valid"] is True
+    assert data["payload_hash_match"] is True
+
+    # Tampered verify request
+    tampered_dict = passport.model_dump(mode="json")
+    tampered_dict["payload"]["score"] = 10
+    res_tampered = client.post("/api/v1/passport/verify", json={"passport": tampered_dict})
+    assert res_tampered.status_code == 200
+    data_tampered = res_tampered.json()
+    assert data_tampered["is_valid"] is False
+    assert data_tampered["payload_hash_match"] is False
+
+
+def test_radar_compare_api_rejects_identical_and_mismatched() -> None:
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import zipfile
+    import io
+
+    client = TestClient(app)
+
+    real_apk_path = "/home/admin/Downloads/viruses-24hours.apk"
+    with zipfile.ZipFile(real_apk_path) as z:
+        entries = {name: z.read(name) for name in z.namelist()}
+
+    # Base APK 1
+    buf1 = io.BytesIO()
+    with zipfile.ZipFile(buf1, "w") as z1:
+        for k, v in entries.items():
+            z1.writestr(k, v)
+    apk_bytes_1 = buf1.getvalue()
+
+    # Base APK 2 with extra asset (different SHA-256, same package)
+    buf2 = io.BytesIO()
+    with zipfile.ZipFile(buf2, "w") as z2:
+        for k, v in entries.items():
+            z2.writestr(k, v)
+        z2.writestr("assets/patch_v2.txt", b"v2")
+    apk_bytes_2 = buf2.getvalue()
+
+    # 1. Identical APK rejection
+    res_identical = client.post(
+        "/api/v1/compare",
+        data={"category": "app_store"},
+        files={
+            "old_file": ("v1.apk", apk_bytes_1, "application/vnd.android.package-archive"),
+            "new_file": ("v2.apk", apk_bytes_1, "application/vnd.android.package-archive"),
+        },
+    )
+    assert res_identical.status_code == 400
+    assert "Identical APKs detected" in res_identical.json()["detail"]
+
+    # 2. Invalid category rejection
+    res_bad_cat = client.post(
+        "/api/v1/compare",
+        data={"category": "unsupported_xyz"},
+        files={
+            "old_file": ("v1.apk", apk_bytes_1, "application/vnd.android.package-archive"),
+            "new_file": ("v2.apk", apk_bytes_2, "application/vnd.android.package-archive"),
+        },
+    )
+    assert res_bad_cat.status_code == 422
+
+
+def test_radar_compare_two_versions_differential() -> None:
+    from fastapi.testclient import TestClient
+    from app.main import app
+    import zipfile
+    import io
+
+    client = TestClient(app)
+
+    real_apk_path = "/home/admin/Downloads/viruses-24hours.apk"
+    with zipfile.ZipFile(real_apk_path) as z:
+        entries = {name: z.read(name) for name in z.namelist()}
+
+    # v1 (original APK)
+    buf1 = io.BytesIO()
+    with zipfile.ZipFile(buf1, "w") as z1:
+        for k, v in entries.items():
+            z1.writestr(k, v)
+    v1_bytes = buf1.getvalue()
+
+    # v2 (modified version with asset stamp)
+    buf2 = io.BytesIO()
+    with zipfile.ZipFile(buf2, "w") as z2:
+        for k, v in entries.items():
+            z2.writestr(k, v)
+        z2.writestr("assets/update_meta.json", b'{"version": "10.0.1"}')
+    v2_bytes = buf2.getvalue()
+
+    res = client.post(
+        "/api/v1/compare",
+        data={"category": "app_store"},
+        files={
+            "old_file": ("app-v1.apk", v1_bytes, "application/vnd.android.package-archive"),
+            "new_file": ("app-v2.apk", v2_bytes, "application/vnd.android.package-archive"),
+        },
+    )
+    assert res.status_code == 200
+    data = res.json()
+
+    assert data["package_name"] == "cm.aptoide.pt"
+    assert data["retained_permissions_count"] >= 20
+    assert "Compared" in data["summary_text"]
+    assert "score_change" in data
+    assert "old_score" in data["score_change"]
+    assert "new_score" in data["score_change"]

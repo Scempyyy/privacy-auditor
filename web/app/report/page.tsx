@@ -20,6 +20,8 @@ import {
   IconSearch,
   IconShieldCheck,
   IconX,
+  IconCpu,
+  IconCertificate,
 } from "@tabler/icons-react";
 import { AnalysisReport, DEMO_REPORT, PermissionFinding } from "@/lib/api";
 import { getActiveReport, getScanById } from "@/lib/history";
@@ -608,6 +610,61 @@ function ReportView() {
           )}
         </div>
       </section>
+
+      {/* Feature 1 & 3: Compact X-Ray & Passport Shortcuts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Privacy X-Ray Section */}
+        <section className="report-card p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-purple-950/80 text-purple-400 border border-purple-800/40">
+                <IconCpu size={18} />
+              </span>
+              <h2 className="text-sm font-bold text-white font-mono">Privacy X-Ray Evidence</h2>
+            </div>
+            <Link href="/xray" className="text-xs text-purple-400 hover:text-purple-300 font-mono flex items-center gap-1">
+              Full X-Ray <IconArrowRight size={13} />
+            </Link>
+          </div>
+          <p className="text-xs text-slate-400">
+            Bytecode analysis inspected Dalvik classes for callsites associated with declared permissions.
+          </p>
+          <div className="flex items-center gap-3 font-mono text-xs pt-1">
+            <span className="px-2.5 py-1 rounded bg-[#101018] border border-emerald-900/40 text-emerald-300">
+              {report.privacy_xray?.permissions_with_references ?? 0} API reference(s) found
+            </span>
+            <span className="px-2.5 py-1 rounded bg-[#101018] border border-slate-800 text-slate-400">
+              {report.privacy_xray?.permissions_no_reference_observed ?? 0} unobserved
+            </span>
+          </div>
+        </section>
+
+        {/* Privacy Passport Section */}
+        <section className="report-card p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-emerald-950/80 text-emerald-400 border border-emerald-800/40">
+                <IconCertificate size={18} />
+              </span>
+              <h2 className="text-sm font-bold text-white font-mono">Verifiable Privacy Passport</h2>
+            </div>
+            <Link href="/passport" className="text-xs text-emerald-400 hover:text-emerald-300 font-mono flex items-center gap-1">
+              View Passport <IconArrowRight size={13} />
+            </Link>
+          </div>
+          <p className="text-xs text-slate-400">
+            Cryptographically signed audit certificate with canonical SHA-256 payload digest and QR reference.
+          </p>
+          <div className="flex items-center gap-3 font-mono text-xs pt-1">
+            <span className="px-2.5 py-1 rounded bg-[#101018] border border-purple-900/40 text-purple-300">
+              {report.passport?.is_signed ? "Ed25519 Signed" : "Hash Verified"}
+            </span>
+            <span className="text-slate-500 text-[11px] truncate max-w-[180px]">
+              ID: {report.passport?.passport_id ?? "N/A"}
+            </span>
+          </div>
+        </section>
+      </div>
 
       {/* Bottom Grid: Revocation Steps & Limitations */}
       <div className="report-bottom-grid">

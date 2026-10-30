@@ -50,3 +50,11 @@ export function getScanById(scanId: string): AnalysisReport | null {
   const history = getScanHistory();
   return history.find((s) => s.scan_id === scanId) || null;
 }
+
+export function getLatestScan(): AnalysisReport | null {
+  const active = getActiveReport();
+  if (active) return active;
+  const history = getScanHistory();
+  return history[0] || DEMO_REPORT;
+}
+

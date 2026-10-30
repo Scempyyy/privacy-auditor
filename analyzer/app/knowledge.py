@@ -17,11 +17,23 @@ def load_json(name: str) -> dict[str, Any]:
     return value
 
 
+def load_json_list(name: str) -> list[Any]:
+    path = DATA_DIR / name
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Knowledge base {name} could not be loaded") from exc
+    if not isinstance(value, list):
+        raise RuntimeError(f"Knowledge base {name} must contain a JSON array")
+    return value
+
+
 def load_knowledge() -> dict[str, Any]:
     permissions = load_json("permissions.json")
     categories = load_json("categories.json")
     trackers = load_json("trackers.json")
     revoke_steps = load_json("revoke_steps.json")
+    api_mappings = load_json_list("permission_api_mappings.json")
     for key, item in permissions.items():
         if not isinstance(item, dict) or item.get("risk") not in {"Critical", "High", "Moderate", "Low"}:
             raise RuntimeError(f"Invalid permission entry: {key}")
@@ -37,4 +49,14 @@ def load_knowledge() -> dict[str, Any]:
             raise RuntimeError(f"Invalid tracker entry: {tracker_id}")
     if any(not isinstance(item, dict) or not isinstance(item.get("steps"), list) for item in revoke_steps.values()):
         raise RuntimeError("Invalid permission revocation guidance")
-    return {"permissions": permissions, "categories": categories, "trackers": trackers, "revoke_steps": revoke_steps}
+    for mapping in api_mappings:
+        if not isinstance(mapping, dict) or not mapping.get("permission") or not mapping.get("api_class"):
+            raise RuntimeError("Invalid permission-to-API mapping entry")
+    return {
+        "permissions": permissions,
+        "categories": categories,
+        "trackers": trackers,
+        "revoke_steps": revoke_steps,
+        "api_mappings": api_mappings,
+    }
+

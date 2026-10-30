@@ -77,3 +77,91 @@ async def analyze_apk(file: UploadFile = File(...), category: str = Form(...)) -
     except Exception as exc:
         logger.exception("Unexpected APK analysis failure")
         raise HTTPException(status_code=500, detail="APK analysis failed") from exc
+
+import hashlib
+import tempfile
+from pathlib import Path
+from app.models import RadarComparisonReport, PassportVerifyRequest, PassportVerifyResponse
+from app.radar import compare_apks
+from app.passport import verify_passport
+
+MAX_COMPARE_BYTES = 150 * 1024 * 1024  # 150 MB combined budget for two APKs
+
+
+@app.post("/api/v1/compare", response_model=RadarComparisonReport)
+async def compare_apk_versions(
+    old_file: UploadFile = File(...),
+    new_file: UploadFile = File(...),
+    category: str = Form(...),
+) -> RadarComparisonReport:
+    """Compares privacy and security posture between two versions of an application."""
+    knowledge = load_knowledge()
+    if category not in knowledge["categories"]:
+        await old_file.close()
+        await new_file.close()
+        raise HTTPException(status_code=422, detail="Unsupported application category")
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="privacy-radar-") as temp_dir:
+            temp_path = Path(temp_dir)
+            old_path = temp_path / "old_version.apk"
+            new_path = temp_path / "new_version.apk"
+
+            total_size = 0
+            old_hasher = hashlib.sha256()
+            new_hasher = hashlib.sha256()
+
+            # Stream old_file
+            with old_path.open("wb") as f:
+                while chunk := await old_file.read(1024 * 1024):
+                    total_size += len(chunk)
+                    if total_size > MAX_COMPARE_BYTES:
+                        raise HTTPException(status_code=413, detail="Combined comparison upload exceeds the 150 MB limit")
+                    old_hasher.update(chunk)
+                    f.write(chunk)
+
+            # Stream new_file
+            with new_path.open("wb") as f:
+                while chunk := await new_file.read(1024 * 1024):
+                    total_size += len(chunk)
+                    if total_size > MAX_COMPARE_BYTES:
+                        raise HTTPException(status_code=413, detail="Combined comparison upload exceeds the 150 MB limit")
+                    new_hasher.update(chunk)
+                    f.write(chunk)
+
+            if old_path.stat().st_size == 0 or new_path.stat().st_size == 0:
+                raise HTTPException(status_code=400, detail="One or both uploaded comparison APKs are empty")
+
+            old_sha256 = old_hasher.hexdigest()
+            new_sha256 = new_hasher.hexdigest()
+
+            try:
+                return compare_apks(
+                    old_path=old_path,
+                    new_path=new_path,
+                    category=category,
+                    knowledge=knowledge,
+                    old_sha256=old_sha256,
+                    new_sha256=new_sha256,
+                )
+            except ValueError as ve:
+                raise HTTPException(status_code=400, detail=str(ve)) from ve
+            except InvalidApk as iae:
+                raise HTTPException(status_code=400, detail=str(iae)) from iae
+            except Exception as exc:
+                logger.exception("Unexpected error in radar comparison")
+                raise HTTPException(status_code=500, detail="Comparison analysis failed") from exc
+
+    finally:
+        await old_file.close()
+        await new_file.close()
+
+
+@app.post("/api/v1/passport/verify", response_model=PassportVerifyResponse)
+async def verify_privacy_passport(request: PassportVerifyRequest) -> PassportVerifyResponse:
+    """Cryptographically verifies a Privacy Passport JSON payload without requiring the original APK."""
+    try:
+        return verify_passport(request.passport)
+    except Exception as exc:
+        logger.exception("Passport verification failed")
+        raise HTTPException(status_code=400, detail=f"Invalid passport structure: {exc}") from exc

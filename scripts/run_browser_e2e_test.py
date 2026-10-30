@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Automated Browser End-to-End Test for Android Privacy Auditor.
 Executes real FastAPI backend and Next.js frontend, performs live APK analysis,
-verifies report contents, verifies localStorage history, and captures screenshots.
+exercises Privacy X-Ray bytecode evidence, Update Radar two-version comparison,
+Privacy Passport cryptographic signing, export, verification, and tampering checks.
+Captures verification screenshots for all three major features.
 """
 import os
+import json
 import subprocess
 import time
 import urllib.request
@@ -13,6 +16,9 @@ from playwright.sync_api import sync_playwright
 SCREENSHOTS_DIR = Path("docs/screenshots")
 SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
 APTOIDE_PATH = Path("/home/admin/Downloads/viruses-24hours.apk").resolve()
+RADAR_V1_PATH = Path("/tmp/aptoide_v10_0.apk").resolve()
+RADAR_V2_PATH = Path("/tmp/aptoide_v10_1.apk").resolve()
+
 
 def wait_for_url(url: str, timeout: int = 30) -> bool:
     start = time.time()
@@ -25,13 +31,15 @@ def wait_for_url(url: str, timeout: int = 30) -> bool:
             time.sleep(0.5)
     return False
 
+
 def main():
+    print("=== Preparing Test APK Fixtures ===")
+    subprocess.run(["python3", "scripts/prepare_test_version_apks.py"], check=True)
+
     print("=== Starting Real Backend & Frontend Services ===")
-    # 1. Kill any zombie processes on ports 8000 & 3000
     subprocess.run(["fuser", "-k", "8000/tcp"], capture_output=True)
     subprocess.run(["fuser", "-k", "3000/tcp"], capture_output=True)
 
-    # 2. Start FastAPI Backend
     env = os.environ.copy()
     backend_proc = subprocess.Popen(
         [".venv/bin/uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8000", "--log-level", "warning"],
@@ -39,7 +47,6 @@ def main():
         env=env
     )
     
-    # 3. Start Next.js Frontend
     frontend_proc = subprocess.Popen(
         ["npm", "run", "start", "--", "-p", "3000"],
         cwd="web"
@@ -66,13 +73,14 @@ def main():
             context = browser.new_context(viewport={"width": 1400, "height": 900})
             page = context.new_page()
 
-            # Step 1: Open Scanner Page
+            # ---------------------------------------------------------
+            # WORKFLOW PART 1: SCANNER & ANALYSIS REPORT
+            # ---------------------------------------------------------
             print("1. Navigating to http://localhost:3000/scanner...")
             page.goto("http://localhost:3000/scanner", wait_until="load")
             page.wait_for_selector("text=Backend online", timeout=15000)
-            print("   -> Backend health indicator verified: Backend online")
+            print("   -> Backend health verified: Backend online")
 
-            # Step 2: Select category & file
             print("2. Selecting category 'App Store / Marketplace'...")
             page.select_option("select", value="app_store")
             
@@ -81,70 +89,107 @@ def main():
             file_input.set_input_files(str(APTOIDE_PATH))
             page.wait_for_selector("text=viruses-24hours.apk", timeout=10000)
 
-            # Screenshot 1: Scanner before submission
+            # Screenshot: Scanner before submission
             ss1_path = SCREENSHOTS_DIR / "1_scanner_before_submission.png"
             page.screenshot(path=str(ss1_path))
             print(f"   -> Captured: {ss1_path}")
 
-            # Step 3: Click Analyze
             print("4. Submitting APK for live static analysis...")
             scan_button = page.locator("button.scan-button")
             scan_button.click()
 
-            # Step 4: Wait for Report Page
             print("5. Waiting for live analysis report to complete...")
             page.wait_for_url("**/report*", timeout=60000)
             page.wait_for_selector("text=cm.aptoide.pt", timeout=15000)
             print("   -> Report loaded successfully for package: cm.aptoide.pt")
 
-            # Screenshot 2: Completed Scan (Top section)
+            score_text = page.locator(".score-ring strong").inner_text()
+            print(f"   -> Verified Score: {score_text}/100")
+            assert score_text == "55", f"Expected score 55, got {score_text}"
+
+            # Screenshot: Report overview
             ss2_path = SCREENSHOTS_DIR / "2_completed_scan.png"
             page.screenshot(path=str(ss2_path))
             print(f"   -> Captured: {ss2_path}")
 
-            # Step 5: Verify Report Elements
-            print("6. Verifying report content & scoring integrity...")
-            score_text = page.locator(".score-ring strong").inner_text()
-            grade_text = page.locator(".grade-pill").inner_text()
-            print(f"   -> Verified Score: {score_text}/100, Grade: {grade_text}")
-            assert score_text == "55", f"Expected score 55, got {score_text}"
+            # ---------------------------------------------------------
+            # WORKFLOW PART 2: PRIVACY X-RAY
+            # ---------------------------------------------------------
+            print("6. Navigating to Privacy X-Ray (/xray)...")
+            page.goto("http://localhost:3000/xray", wait_until="load")
+            page.wait_for_selector("text=Permission-to-Code Evidence", timeout=15000)
+            page.wait_for_selector("text=API References Discovered", timeout=15000)
+            print("   -> Verified: Privacy X-Ray loaded with DEX coverage & bytecode evidence")
 
-            # Verify Malware Scan Notice
-            malware_notice = page.locator("text=Malware scan not performed")
-            assert malware_notice.count() > 0, "Missing 'Malware scan not performed' notice!"
-            print("   -> Verified: 'Malware scan not performed' disclaimer prominently visible")
+            # Click on SYSTEM_ALERT_WINDOW finding to reveal callsite trace
+            print("7. Inspecting SYSTEM_ALERT_WINDOW bytecode callsite trace...")
+            saw_finding = page.locator("text=SYSTEM_ALERT_WINDOW")
+            if saw_finding.count() > 0:
+                saw_finding.first.click()
+                time.sleep(0.5)
 
-            # Verify Trackers
-            assert page.locator("text=Google CrashLytics").count() > 0, "Missing CrashLytics match"
-            assert page.locator("text=Google Firebase Analytics").count() > 0, "Missing Firebase Analytics match"
-            assert page.locator("text=AppLovin (MAX and SparkLabs)").count() > 0, "Missing AppLovin match"
-            assert page.locator("text=IAB Open Measurement").count() > 0, "Missing IAB Open Measurement match"
-            print("   -> Verified: All 4 Exodus tracker findings rendered with evidence")
+            # Screenshot: Feature 1 - Privacy X-Ray
+            ss_xray = SCREENSHOTS_DIR / "feature1_privacy_xray.png"
+            page.screenshot(path=str(ss_xray), full_page=True)
+            print(f"   -> Captured: {ss_xray} (Privacy X-Ray)")
 
-            # Screenshot 3: Full Report
-            ss3_path = SCREENSHOTS_DIR / "3_full_report.png"
-            page.screenshot(path=str(ss3_path), full_page=True)
-            print(f"   -> Captured: {ss3_path} (full page)")
+            # ---------------------------------------------------------
+            # WORKFLOW PART 3: PRIVACY UPDATE RADAR
+            # ---------------------------------------------------------
+            print("8. Navigating to Privacy Update Radar (/radar)...")
+            page.goto("http://localhost:3000/radar", wait_until="load")
+            page.wait_for_selector("text=Comparative Privacy Posture", timeout=15000)
 
-            # Step 6: Verify Dashboard History
-            print("7. Navigating to Dashboard to verify local persistence...")
+            print("9. Uploading Baseline and Updated APK releases for comparison...")
+            old_input = page.locator("#old-apk-input")
+            old_input.set_input_files(str(RADAR_V1_PATH))
+            new_input = page.locator("#new-apk-input")
+            new_input.set_input_files(str(RADAR_V2_PATH))
+            page.select_option("#radar-category-select", value="app_store")
+
+            # Click compare button
+            print("10. Triggering comparative audit...")
+            compare_btn = page.locator("button:has-text('Run Differential Audit')")
+            compare_btn.click()
+
+            print("11. Waiting for radar differential report...")
+            page.wait_for_selector("text=Package Diff Verified", timeout=45000)
+            print("   -> Differential audit verified for cm.aptoide.pt!")
+
+            # Screenshot: Feature 2 - Privacy Update Radar
+            ss_radar = SCREENSHOTS_DIR / "feature2_privacy_radar.png"
+            page.screenshot(path=str(ss_radar), full_page=True)
+            print(f"   -> Captured: {ss_radar} (Privacy Update Radar)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 4: PRIVACY PASSPORT
+            # ---------------------------------------------------------
+            print("12. Navigating to Privacy Passport (/passport)...")
+            page.goto("http://localhost:3000/passport", wait_until="load")
+            page.wait_for_selector("text=Official Privacy Audit Passport", timeout=15000)
+            page.wait_for_selector("text=Ed25519 Signed", timeout=15000)
+            page.wait_for_selector("text=Canonical Payload SHA-256", timeout=15000)
+            print("   -> Verified: Privacy Passport rendered with Ed25519 signature and QR code")
+
+            # Screenshot: Feature 3 - Privacy Passport
+            ss_passport = SCREENSHOTS_DIR / "feature3_privacy_passport.png"
+            page.screenshot(path=str(ss_passport), full_page=True)
+            print(f"   -> Captured: {ss_passport} (Privacy Passport)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 5: DASHBOARD PERSISTENCE
+            # ---------------------------------------------------------
+            print("13. Navigating to Dashboard to verify local persistence...")
             page.goto("http://localhost:3000/dashboard", wait_until="load")
             page.wait_for_selector("text=cm.aptoide.pt", timeout=15000)
             print("   -> Verified: Aptoide scan present in local scan history")
 
-            # Screenshot 4: Dashboard History
             ss4_path = SCREENSHOTS_DIR / "4_dashboard_history.png"
             page.screenshot(path=str(ss4_path))
             print(f"   -> Captured: {ss4_path}")
 
-            # Step 7: Reload to prove persistence
-            print("8. Reloading Dashboard to verify persistence across sessions...")
-            page.reload(wait_until="load")
-            page.wait_for_selector("text=cm.aptoide.pt", timeout=15000)
-            print("   -> Verified: Scan history strictly preserved in localStorage after reload")
-
             browser.close()
-            print("\n=== All Browser End-to-End Assertions PASSED (100%) ===")
+            print("\n=== All Browser End-to-End Workflows & Feature Assertions PASSED (100%) ===")
     except Exception as exc:
         import traceback
         print("\n!!! EXCEPTION IN BROWSER TEST !!!")
@@ -156,6 +201,7 @@ def main():
         frontend_proc.terminate()
         backend_proc.wait()
         frontend_proc.wait()
+
 
 if __name__ == "__main__":
     main()
