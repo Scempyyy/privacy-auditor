@@ -86,6 +86,8 @@ class AnalysisReport(StrictModel):
     passport: "PrivacyPassport | None" = None
     attack_surface: "AttackSurfaceReport | None" = None
     nutrition_label: "PrivacyNutritionLabel | None" = None
+    publisher_identity: "PublisherIdentityReport | None" = None
+    privacy_reality: "PrivacyRealityReport | None" = None
 
 
 # ==================== FEATURE 1: PRIVACY X-RAY MODELS ====================
@@ -309,3 +311,115 @@ class PrivacyNutritionLabel(StrictModel):
     sections: list[PrivacyNutritionSection]
     key_takeaways: list[str]
     limitations_notice: str
+
+
+# ==================== FEATURE 6: PUBLISHER IDENTITY MODELS ====================
+
+class SigningCertificateInfo(StrictModel):
+    subject: str
+    issuer: str
+    serial_number: str
+    sha256_fingerprint: str
+    sha1_fingerprint: str
+    valid_from: str | None = None
+    valid_until: str | None = None
+
+
+class NativeLibraryInfo(StrictModel):
+    name: str
+    abi: str
+    path: str
+    size_bytes: int
+
+
+class PublisherIdentityReport(StrictModel):
+    is_signed: bool
+    v1_signing_enabled: bool
+    v2_signing_enabled: bool
+    v3_signing_enabled: bool
+    certificates: list[SigningCertificateInfo]
+    native_libraries: list[NativeLibraryInfo]
+    dex_files: list[str]
+    supported_abis: list[str]
+    total_files: int
+    total_uncompressed_bytes: int
+    summary: str
+    limitations: list[str]
+
+
+# ==================== FEATURE 7: PRIVACY REALITY ENGINE MODELS ====================
+
+class PrivacyRealityItem(StrictModel):
+    capability_name: str
+    layer1_declared: bool
+    layer2_statically_referenced: bool
+    layer3_data_flow_evidence: bool
+    layer4_runtime_observed: bool
+    layer5_inconclusive: bool
+    classification: Literal[
+        "declared_and_referenced",
+        "declared_only_no_static_call",
+        "referenced_not_declared",
+        "runtime_observed",
+        "inconclusive",
+    ]
+    verdict_explanation: str
+    callsites_count: int = 0
+    callsites_sample: list[str] = Field(default_factory=list)
+
+
+class PrivacyRealityReport(StrictModel):
+    package_name: str
+    total_capabilities_assessed: int
+    total_statically_referenced: int
+    total_declared_only: int
+    total_data_flow_traced: int
+    total_runtime_observed: int
+    items: list[PrivacyRealityItem]
+    summary: str
+    limitations: list[str]
+
+
+# ==================== FEATURE 8: BENCHMARK SUITE MODELS ====================
+
+class BenchmarkCaseResult(StrictModel):
+    case_id: str
+    title: str
+    scenario: str
+    status: Literal["passed", "failed", "unassessed"]
+    expected_outcome: str
+    actual_outcome: str
+    ground_truth_alignment: str
+
+
+class BenchmarkSuiteReport(StrictModel):
+    total_cases: int
+    passed_cases: int
+    failed_cases: int
+    accuracy_rate: float
+    cases: list[BenchmarkCaseResult]
+    summary: str
+    limitations: list[str]
+
+
+# ==================== FEATURE 9: DYNAMIC SANDBOX MODELS ====================
+
+class SandboxTimelineEvent(StrictModel):
+    timestamp_offset_ms: int
+    event_type: Literal["lifecycle", "api_call", "network", "service"]
+    description: str
+    evidence_source: str
+
+
+class DynamicSandboxStatusReport(StrictModel):
+    is_available: bool
+    is_enabled: bool
+    adb_installed: bool
+    emulator_installed: bool
+    java_installed: bool
+    frida_installed: bool
+    active_disposable_devices: list[str]
+    status_message: str
+    safety_controls_enforced: list[str]
+    sample_timeline: list[SandboxTimelineEvent]
+

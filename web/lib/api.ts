@@ -329,8 +329,115 @@ export type AnalysisReport = {
   passport?: PrivacyPassport | null;
   attack_surface?: AttackSurfaceReport | null;
   nutrition_label?: PrivacyNutritionLabel | null;
+  publisher_identity?: PublisherIdentityReport | null;
+  privacy_reality?: PrivacyRealityReport | null;
   analyzed_at?: string;
   is_demo?: boolean;
+};
+
+// ==================== FEATURE 6: PUBLISHER IDENTITY TYPES ====================
+
+export type SigningCertificateInfo = {
+  subject: string;
+  issuer: string;
+  serial_number: string;
+  sha256_fingerprint: string;
+  sha1_fingerprint: string;
+  valid_from?: string | null;
+  valid_until?: string | null;
+};
+
+export type NativeLibraryInfo = {
+  name: string;
+  abi: string;
+  path: string;
+  size_bytes: number;
+};
+
+export type PublisherIdentityReport = {
+  is_signed: boolean;
+  v1_signing_enabled: boolean;
+  v2_signing_enabled: boolean;
+  v3_signing_enabled: boolean;
+  certificates: SigningCertificateInfo[];
+  native_libraries: NativeLibraryInfo[];
+  dex_files: string[];
+  supported_abis: string[];
+  total_files: number;
+  total_uncompressed_bytes: number;
+  summary: string;
+  limitations: string[];
+};
+
+// ==================== FEATURE 7: PRIVACY REALITY ENGINE TYPES ====================
+
+export type PrivacyRealityItem = {
+  capability_name: string;
+  layer1_declared: boolean;
+  layer2_statically_referenced: boolean;
+  layer3_data_flow_evidence: boolean;
+  layer4_runtime_observed: boolean;
+  layer5_inconclusive: boolean;
+  classification: "declared_and_referenced" | "declared_only_no_static_call" | "referenced_not_declared" | "runtime_observed" | "inconclusive";
+  verdict_explanation: string;
+  callsites_count: number;
+  callsites_sample: string[];
+};
+
+export type PrivacyRealityReport = {
+  package_name: string;
+  total_capabilities_assessed: number;
+  total_statically_referenced: number;
+  total_declared_only: number;
+  total_data_flow_traced: number;
+  total_runtime_observed: number;
+  items: PrivacyRealityItem[];
+  summary: string;
+  limitations: string[];
+};
+
+// ==================== FEATURE 8: BENCHMARK SUITE TYPES ====================
+
+export type BenchmarkCaseResult = {
+  case_id: string;
+  title: string;
+  scenario: string;
+  status: "passed" | "failed" | "unassessed";
+  expected_outcome: string;
+  actual_outcome: string;
+  ground_truth_alignment: string;
+};
+
+export type BenchmarkSuiteReport = {
+  total_cases: number;
+  passed_cases: number;
+  failed_cases: number;
+  accuracy_rate: number;
+  cases: BenchmarkCaseResult[];
+  summary: string;
+  limitations: string[];
+};
+
+// ==================== FEATURE 9: DYNAMIC SANDBOX TYPES ====================
+
+export type SandboxTimelineEvent = {
+  timestamp_offset_ms: number;
+  event_type: "lifecycle" | "api_call" | "network" | "service";
+  description: string;
+  evidence_source: string;
+};
+
+export type DynamicSandboxStatusReport = {
+  is_available: boolean;
+  is_enabled: boolean;
+  adb_installed: boolean;
+  emulator_installed: boolean;
+  java_installed: boolean;
+  frida_installed: boolean;
+  active_disposable_devices: string[];
+  status_message: string;
+  safety_controls_enforced: string[];
+  sample_timeline: SandboxTimelineEvent[];
 };
 
 // Next.js client-side public base URL

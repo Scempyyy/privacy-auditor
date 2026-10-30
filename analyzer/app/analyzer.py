@@ -11,10 +11,12 @@ from androguard.core.dex import DEX
 
 import hashlib
 from app.attack_surface import analyze_attack_surface
+from app.identity import inspect_publisher_identity
 from app.knowledge import DATA_DIR, load_knowledge
 from app.models import AnalysisReport, PermissionMetrics, SecurityFinding
 from app.nutrition import build_nutrition_label
 from app.passport import create_passport
+from app.reality import build_privacy_reality_report
 from app.scoring import calculate_score
 from app.xray import extract_dex_evidence
 
@@ -401,6 +403,16 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
         attack_surface_dict=attack_surface.model_dump(mode="json"),
     )
 
+    # Feature 6: APK Publisher Identity & Supply Chain Inspector
+    publisher_identity = inspect_publisher_identity(path, apk=apk)
+
+    # Feature 7: Privacy Reality Engine Multi-layer Correlator
+    privacy_reality = build_privacy_reality_report(
+        permissions=findings,
+        xray_findings=privacy_xray.findings,
+        package_name=package_name,
+    )
+
     return AnalysisReport(
         scan_id=uuid.uuid4().hex,
         package_name=package_name,
@@ -424,6 +436,8 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
         passport=passport,
         attack_surface=attack_surface,
         nutrition_label=nutrition_label,
+        publisher_identity=publisher_identity,
+        privacy_reality=privacy_reality,
     )
 
 

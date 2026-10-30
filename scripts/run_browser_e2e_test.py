@@ -177,9 +177,61 @@ def main():
             print(f"   -> Captured: {ss_passport} (Privacy Passport)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 5: ATTACK SURFACE EXPLORER
+            # WORKFLOW PART 5: PRIVACY REALITY ENGINE
             # ---------------------------------------------------------
-            print("13. Navigating to Attack Surface Explorer (/attack-surface)...")
+            print("13. Navigating to Privacy Reality Engine (/reality)...")
+            page.goto("http://localhost:3000/reality", wait_until="load")
+            page.wait_for_selector("text=Privacy Reality Engine", timeout=15000)
+            page.wait_for_selector("text=Correlated Capabilities & Reality Status", timeout=15000)
+            print("   -> Verified: Privacy Reality Engine correlated declared vs static bytecode")
+
+            ss_reality = SCREENSHOTS_DIR / "feature6_privacy_reality.png"
+            page.screenshot(path=str(ss_reality), full_page=True)
+            print(f"   -> Captured: {ss_reality} (Privacy Reality Engine)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 6: PUBLISHER IDENTITY & SUPPLY CHAIN
+            # ---------------------------------------------------------
+            print("14. Navigating to Publisher Identity (/identity)...")
+            page.goto("http://localhost:3000/identity", wait_until="load")
+            page.wait_for_selector("text=APK Publisher Identity", timeout=15000)
+            page.wait_for_selector("text=Cryptographically Signed", timeout=15000)
+            print("   -> Verified: Publisher Identity with X.509 cert and native .so libraries")
+
+            ss_ident = SCREENSHOTS_DIR / "feature7_publisher_identity.png"
+            page.screenshot(path=str(ss_ident), full_page=True)
+            print(f"   -> Captured: {ss_ident} (Publisher Identity)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 7: BENCHMARK LAB
+            # ---------------------------------------------------------
+            print("15. Navigating to Benchmark Lab (/benchmark)...")
+            page.goto("http://localhost:3000/benchmark", wait_until="load")
+            page.wait_for_selector("text=Privacy Benchmark Lab", timeout=15000)
+            page.wait_for_selector("text=Controlled Ground-Truth Scenarios", timeout=15000)
+            print("   -> Verified: Benchmark Lab with 5/5 passed synthetic ground-truth scenarios")
+
+            ss_bench = SCREENSHOTS_DIR / "feature8_benchmark_lab.png"
+            page.screenshot(path=str(ss_bench), full_page=True)
+            print(f"   -> Captured: {ss_bench} (Benchmark Lab)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 8: DYNAMIC SANDBOX
+            # ---------------------------------------------------------
+            print("16. Navigating to Dynamic Sandbox (/sandbox)...")
+            page.goto("http://localhost:3000/sandbox", wait_until="load")
+            page.wait_for_selector("text=Isolated Dynamic Privacy Sandbox", timeout=15000)
+            page.wait_for_selector("text=Safety Architecture & Environmental Controls", timeout=15000)
+            print("   -> Verified: Dynamic Sandbox status and safety invariants")
+
+            ss_sand = SCREENSHOTS_DIR / "feature9_dynamic_sandbox.png"
+            page.screenshot(path=str(ss_sand), full_page=True)
+            print(f"   -> Captured: {ss_sand} (Dynamic Sandbox)")
+
+            # ---------------------------------------------------------
+            # WORKFLOW PART 9: ATTACK SURFACE EXPLORER
+            # ---------------------------------------------------------
+            print("17. Navigating to Attack Surface Explorer (/attack-surface)...")
             page.goto("http://localhost:3000/attack-surface", wait_until="load")
             page.wait_for_selector("text=Attack Surface Explorer", timeout=15000)
             page.wait_for_selector("text=Component Breakdown", timeout=15000)
@@ -190,9 +242,9 @@ def main():
             print(f"   -> Captured: {ss_attack} (Attack Surface Explorer)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 6: TRUST CENTER
+            # WORKFLOW PART 10: TRUST CENTER
             # ---------------------------------------------------------
-            print("14. Navigating to Trust Center (/trust-center)...")
+            print("18. Navigating to Trust Center (/trust-center)...")
             page.goto("http://localhost:3000/trust-center", wait_until="load")
             page.wait_for_selector("text=Zero Cloud Transmission", timeout=15000)
             page.wait_for_selector("text=Local-First Architecture", timeout=15000)
@@ -203,9 +255,9 @@ def main():
             print(f"   -> Captured: {ss_trust} (Trust Center)")
 
             # ---------------------------------------------------------
-            # WORKFLOW PART 7: DASHBOARD PERSISTENCE
+            # WORKFLOW PART 11: DASHBOARD PERSISTENCE
             # ---------------------------------------------------------
-            print("15. Navigating to Dashboard to verify local persistence...")
+            print("19. Navigating to Dashboard to verify local persistence...")
             page.goto("http://localhost:3000/dashboard", wait_until="load")
             page.wait_for_selector("text=cm.aptoide.pt", timeout=15000)
             print("   -> Verified: Aptoide scan present in local scan history")

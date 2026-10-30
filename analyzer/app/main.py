@@ -165,3 +165,21 @@ async def verify_privacy_passport(request: PassportVerifyRequest) -> PassportVer
     except Exception as exc:
         logger.exception("Passport verification failed")
         raise HTTPException(status_code=400, detail=f"Invalid passport structure: {exc}") from exc
+
+
+from app.benchmark import run_benchmark_evaluation
+from app.sandbox import check_sandbox_availability
+from app.models import BenchmarkSuiteReport, DynamicSandboxStatusReport
+
+
+@app.get("/api/v1/benchmark", response_model=BenchmarkSuiteReport)
+def get_benchmark_report() -> BenchmarkSuiteReport:
+    """Returns the ground-truth benchmark evaluation results across all 5 test APK scenarios."""
+    return run_benchmark_evaluation()
+
+
+@app.get("/api/v1/sandbox/status", response_model=DynamicSandboxStatusReport)
+def get_sandbox_status() -> DynamicSandboxStatusReport:
+    """Probes the environment and returns the availability, device status, and safety controls of the dynamic sandbox."""
+    return check_sandbox_availability()
+

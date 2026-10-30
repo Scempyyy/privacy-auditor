@@ -552,3 +552,66 @@ def test_zero_network_isolation_during_analysis(monkeypatch) -> None:
     assert report.package_name == "cm.aptoide.pt"
     assert report.score > 0
 
+
+def test_publisher_identity_and_supply_chain() -> None:
+    from app.analyzer import analyze_path
+    from pathlib import Path
+
+    real_apk_path = Path("/home/admin/Downloads/viruses-24hours.apk")
+    report = analyze_path(real_apk_path, category="app_store")
+
+    assert report.publisher_identity is not None
+    ident = report.publisher_identity
+    assert ident.is_signed is True
+    assert ident.v2_signing_enabled is True
+    assert len(ident.certificates) >= 1
+    assert len(ident.certificates[0].sha256_fingerprint) == 64
+    assert len(ident.native_libraries) >= 1
+    assert "arm64-v8a" in ident.supported_abis or "armeabi-v7a" in ident.supported_abis
+    assert len(ident.dex_files) >= 1
+
+
+def test_privacy_reality_engine_correlation() -> None:
+    from app.analyzer import analyze_path
+    from pathlib import Path
+
+    real_apk_path = Path("/home/admin/Downloads/viruses-24hours.apk")
+    report = analyze_path(real_apk_path, category="app_store")
+
+    assert report.privacy_reality is not None
+    reality = report.privacy_reality
+    assert reality.total_capabilities_assessed > 0
+    assert reality.total_statically_referenced > 0
+    assert reality.total_declared_only > 0
+    assert len(reality.items) == reality.total_capabilities_assessed
+
+    # Confirm SYSTEM_ALERT_WINDOW is declared and referenced
+    saw = [item for item in reality.items if "SYSTEM_ALERT_WINDOW" in item.capability_name]
+    assert len(saw) >= 1
+    assert saw[0].classification == "declared_and_referenced"
+    assert saw[0].callsites_count > 0
+
+
+def test_benchmark_lab_and_sandbox_endpoints() -> None:
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    client = TestClient(app)
+
+    # Test Benchmark endpoint
+    bench_res = client.get("/api/v1/benchmark")
+    assert bench_res.status_code == 200
+    b_data = bench_res.json()
+    assert b_data["total_cases"] == 5
+    assert b_data["passed_cases"] == 5
+    assert b_data["accuracy_rate"] == 100.0
+
+    # Test Sandbox status endpoint
+    sand_res = client.get("/api/v1/sandbox/status")
+    assert sand_res.status_code == 200
+    s_data = sand_res.json()
+    assert "is_available" in s_data
+    assert s_data["is_enabled"] is False  # Safety invariant: disabled by default
+    assert len(s_data["safety_controls_enforced"]) >= 3
+
+
