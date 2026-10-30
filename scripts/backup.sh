@@ -27,8 +27,8 @@ BACKUP_DIR="${HOME}/android-privacy-auditor-backups"
 mkdir -p "${BACKUP_DIR}"
 
 # Sanitize labels to safe characters
-SAFE_MODULE=$(echo "${MODULE}" | tr -cs 'a-zA-Z0-9_-' '_')
-SAFE_PROMPT=$(echo "${PROMPT}" | tr -cs 'a-zA-Z0-9_-' '_')
+SAFE_MODULE=$(printf "%s" "${MODULE}" | sed "s/[^a-zA-Z0-9_-]/_/g")
+SAFE_PROMPT=$(printf "%s" "${PROMPT}" | sed "s/[^a-zA-Z0-9_-]/_/g")
 
 if [ -n "${SAFE_PROMPT}" ]; then
     LABEL="${SAFE_MODULE}_${SAFE_PROMPT}"
