@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Android Privacy Auditor — Project Backup Script
+# Android Privacy Auditor — Hardened Project Backup Script
 # Usage: ./scripts/backup.sh <module-label> [prompt-label]
 # Example: ./scripts/backup.sh module-00 prompt-01
 # ==============================================================================
@@ -53,11 +53,22 @@ if [ -e "${ARCHIVE_PATH}" ]; then
     exit 1
 fi
 
+echo "Scanning repository for sensitive files and preparing backup..."
+
+# Dynamically discover all real .env* files (preserving *.example)
+DYNAMIC_ENV_EXCLUDES=()
+while IFS= read -r -d '' env_file; do
+    rel_from_parent="${env_file#"${REPO_PARENT}/"}"
+    base_name="$(basename "${env_file}")"
+    DYNAMIC_ENV_EXCLUDES+=("--exclude=${rel_from_parent}" "--exclude=${base_name}")
+done < <(find "${REPO_ROOT}" -type f \( -name ".env*" -o -name "*.env*" \) ! -name "*.example" -print0 2>/dev/null || true)
+
 echo "Creating backup archive: ${ARCHIVE_NAME}..."
 
-# Create compressed TAR.GZ archive with strict exclusions
+# Create compressed TAR.GZ archive with hardened exclusions
 tar -czf "${ARCHIVE_PATH}" \
     -C "${REPO_PARENT}" \
+    "${DYNAMIC_ENV_EXCLUDES[@]}" \
     --exclude='.git' \
     --exclude='.venv' \
     --exclude='venv' \
@@ -81,12 +92,31 @@ tar -czf "${ARCHIVE_PATH}" \
     --exclude='.env' \
     --exclude='.env.local' \
     --exclude='.env.*.local' \
+    --exclude='.env.production*' \
+    --exclude='.env.development*' \
+    --exclude='.env.test*' \
+    --exclude='.env.staging*' \
+    --exclude='.env.preview*' \
+    --exclude='.env.ci*' \
+    --exclude='*.env' \
+    --exclude='*.env.local' \
+    --exclude='*.env.production*' \
+    --exclude='*.env.development*' \
+    --exclude='*.env.test*' \
     --exclude='*.pem' \
     --exclude='*.key' \
     --exclude='*.keystore' \
     --exclude='*.jks' \
+    --exclude='*.p12' \
+    --exclude='*.pfx' \
+    --exclude='*.pkcs12' \
     --exclude='id_rsa*' \
     --exclude='id_ed25519*' \
+    --exclude='id_ecdsa*' \
+    --exclude='id_dsa*' \
+    --exclude='*credentials*.json' \
+    --exclude='*service_account*.json' \
+    --exclude='*.secret' \
     --exclude='uploads' \
     --exclude='tmp' \
     --exclude='temp' \
