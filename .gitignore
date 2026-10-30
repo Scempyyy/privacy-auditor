@@ -68,3 +68,14 @@ pnpm-debug.log*
 *~
 .DS_Store
 Thumbs.db
+
+# Protect all environment files; retain sanitized templates
+.env*
+!.env.example
+!.env.*.example
+
+# Android signing credentials
+*.jks
+*.keystore
+*.p12
+*.pfx
