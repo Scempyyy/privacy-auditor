@@ -179,11 +179,15 @@ def analyze_path(path: Path, category: str) -> AnalysisReport:
             else:
                 explanation = "Permission is absent from the curated knowledge base; classified as Unclassified without inferred risk penalty."
                 
-        protection_level = declared_protection_levels.get(permission) or (info.get("protection_level") if info else None)
+        platform_protection_level = declared_protection_levels.get(permission) or (info.get("platform_protection_level") if info else None) or (info.get("protection_level") if info else None)
+        grant_mechanism = info.get("grant_mechanism") if info else "unclassified"
+        protection_level = platform_protection_level
 
         findings.append({
             "name": permission,
             "protection_level": protection_level,
+            "platform_protection_level": platform_protection_level,
+            "grant_mechanism": grant_mechanism,
             "risk": risk,
             "category_classification": classification,
             "group": group,

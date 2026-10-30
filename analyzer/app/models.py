@@ -11,6 +11,8 @@ class StrictModel(BaseModel):
 class PermissionFinding(StrictModel):
     name: str
     protection_level: str | None = None
+    platform_protection_level: str | None = None
+    grant_mechanism: Literal["runtime", "install_time", "special_app_access", "signature_restricted", "unclassified"] | None = None
     risk: Literal["Critical", "High", "Moderate", "Low", "Unclassified", "Unknown"]
     category_classification: Literal["Expected", "Review", "Unusual", "Unclassified", "Unknown"]
     group: str | None = None

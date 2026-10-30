@@ -205,10 +205,16 @@ def test_permissions_dataset_validity() -> None:
     perms = kb["permissions"]
     assert len(perms) >= 80
     valid_risks = {"Critical", "High", "Moderate", "Low", "Unclassified"}
+    valid_grant_mechanisms = {"runtime", "install_time", "special_app_access", "signature_restricted"}
     for name, p in perms.items():
         assert p["risk"] in valid_risks
         assert "explanation" in p and len(p["explanation"]) > 10
         assert "protection_level" in p
+        assert "platform_protection_level" in p
+        # platform_protection_level must never be "special"
+        assert p["platform_protection_level"] != "special"
+        assert p["protection_level"] != "special"
+        assert p.get("grant_mechanism") in valid_grant_mechanisms
         assert "source" in p
         assert p.get("verified_at") == "2026-10-30"
 

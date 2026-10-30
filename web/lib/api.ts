@@ -41,6 +41,8 @@ export const CATEGORY_OPTIONS: { value: AppCategory; label: string }[] = [
 export type PermissionFinding = {
   name: string;
   protection_level?: string | null;
+  platform_protection_level?: string | null;
+  grant_mechanism?: "runtime" | "install_time" | "special_app_access" | "signature_restricted" | "unclassified" | null;
   risk: "Critical" | "High" | "Moderate" | "Low" | "Unclassified" | "Unknown";
   category_classification: "Expected" | "Review" | "Unusual" | "Unclassified" | "Unknown";
   group: string | null;

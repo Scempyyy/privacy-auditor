@@ -428,14 +428,29 @@ function ReportView() {
                         <b className="truncate">
                           {perm.group || perm.name.replace("android.permission.", "")}
                         </b>
-                        {perm.is_runtime && (
+                        {perm.grant_mechanism === "runtime" && (
                           <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono">
                             runtime
                           </span>
                         )}
-                        {perm.protection_level && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
-                            {perm.protection_level}
+                        {perm.grant_mechanism === "special_app_access" && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-950/80 text-amber-300 border border-amber-800/60 font-mono">
+                            special app access
+                          </span>
+                        )}
+                        {perm.grant_mechanism === "signature_restricted" && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-950/80 text-red-300 border border-red-800/60 font-mono">
+                            signature
+                          </span>
+                        )}
+                        {perm.grant_mechanism === "install_time" && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-950/80 text-blue-300 border border-blue-800/60 font-mono">
+                            install time
+                          </span>
+                        )}
+                        {(perm.platform_protection_level || perm.protection_level) && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono" title="Platform Protection Level">
+                            {perm.platform_protection_level || perm.protection_level}
                           </span>
                         )}
                       </div>
