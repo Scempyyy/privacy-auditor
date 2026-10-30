@@ -1,17 +1,281 @@
 {
-  "android.permission.CAMERA": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Camera.", "Choose Don't allow or Ask every time where available."]},
-  "android.permission.RECORD_AUDIO": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Microphone.", "Choose Don't allow or Ask every time where available."]},
-  "android.permission.ACCESS_FINE_LOCATION": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Location.", "Choose Don't allow, Ask every time, or Allow only while using the app."]},
-  "android.permission.ACCESS_COARSE_LOCATION": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Location.", "Choose Don't allow or Allow only while using the app; disable precise location if offered."]},
-  "android.permission.ACCESS_BACKGROUND_LOCATION": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Location.", "Remove Allow all the time; choose a more limited option or Don't allow."]},
-  "android.permission.READ_CONTACTS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Contacts.", "Choose Don't allow."]},
-  "android.permission.WRITE_CONTACTS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Contacts.", "Choose Don't allow."]},
-  "android.permission.READ_SMS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then SMS.", "Choose Don't allow."]},
-  "android.permission.SEND_SMS": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then SMS.", "Choose Don't allow."]},
-  "android.permission.READ_CALL_LOG": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Call logs.", "Choose Don't allow."]},
-  "android.permission.READ_PHONE_STATE": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Phone.", "Choose Don't allow."]},
-  "android.permission.READ_EXTERNAL_STORAGE": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Photos and videos or Files.", "Choose Don't allow or select limited access where available."]},
-  "android.permission.WRITE_EXTERNAL_STORAGE": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Files.", "Choose Don't allow where available."]},
-  "android.permission.BLUETOOTH_CONNECT": {"steps": ["Open Settings.", "Tap Apps, then select the app.", "Tap Permissions, then Nearby devices.", "Choose Don't allow."]},
-  "android.permission.SYSTEM_ALERT_WINDOW": {"steps": ["Open Settings.", "Tap Apps, then Special app access.", "Tap Display over other apps.", "Select the app and turn off permission."]}
+  "android.permission.CAMERA": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Camera.",
+      "Choose Don't allow or Ask every time."
+    ]
+  },
+  "android.permission.RECORD_AUDIO": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Microphone.",
+      "Choose Don't allow or Ask every time."
+    ]
+  },
+  "android.permission.ACCESS_FINE_LOCATION": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Location.",
+      "Choose Don't allow, Ask every time, or Allow only while using the app."
+    ]
+  },
+  "android.permission.ACCESS_COARSE_LOCATION": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Location.",
+      "Choose Don't allow or turn off Use precise location."
+    ]
+  },
+  "android.permission.ACCESS_BACKGROUND_LOCATION": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Location.",
+      "Change from Allow all the time to Allow only while using the app or Don't allow."
+    ]
+  },
+  "android.permission.READ_CONTACTS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Contacts.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.WRITE_CONTACTS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Contacts.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.GET_ACCOUNTS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Contacts or Accounts.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_CALENDAR": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Calendar.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.WRITE_CALENDAR": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Calendar.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_SMS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then SMS.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.SEND_SMS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then SMS.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.RECEIVE_SMS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then SMS.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_CALL_LOG": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Call logs.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.WRITE_CALL_LOG": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Call logs.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_PHONE_STATE": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Phone.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_PHONE_NUMBERS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Phone.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.CALL_PHONE": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Phone.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_EXTERNAL_STORAGE": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Photos and videos or Files.",
+      "Choose Don't allow or Ask every time."
+    ]
+  },
+  "android.permission.WRITE_EXTERNAL_STORAGE": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Files.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.MANAGE_EXTERNAL_STORAGE": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then Special app access.",
+      "Tap All files access.",
+      "Select the app and turn off Allow access to manage all files."
+    ]
+  },
+  "android.permission.READ_MEDIA_IMAGES": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Photos and videos.",
+      "Choose Don't allow or select Limit access to select photos."
+    ]
+  },
+  "android.permission.READ_MEDIA_VIDEO": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Photos and videos.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.READ_MEDIA_AUDIO": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Music and audio.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.ACCESS_MEDIA_LOCATION": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Photos and videos.",
+      "Revoke media location access or select Don't allow."
+    ]
+  },
+  "android.permission.BODY_SENSORS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Sensors.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.ACTIVITY_RECOGNITION": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Physical activity.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.BLUETOOTH_SCAN": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Nearby devices.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.BLUETOOTH_CONNECT": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Permissions, then Nearby devices.",
+      "Choose Don't allow."
+    ]
+  },
+  "android.permission.POST_NOTIFICATIONS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then select the app.",
+      "Tap Notifications.",
+      "Toggle off Allow notifications."
+    ]
+  },
+  "android.permission.SYSTEM_ALERT_WINDOW": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then Special app access.",
+      "Tap Display over other apps.",
+      "Select the app and turn off Allow display over other apps."
+    ]
+  },
+  "android.permission.PACKAGE_USAGE_STATS": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then Special app access.",
+      "Tap Usage access.",
+      "Select the app and turn off Permit usage access."
+    ]
+  },
+  "android.permission.REQUEST_INSTALL_PACKAGES": {
+    "steps": [
+      "Open Settings.",
+      "Tap Apps, then Special app access.",
+      "Tap Install unknown apps.",
+      "Select the app and turn off Allow from this source."
+    ]
+  },
+  "android.permission.ACCESS_ADSERVICES_AD_ID": {
+    "steps": [
+      "Open Settings.",
+      "Tap Security & privacy, then Privacy.",
+      "Tap Ads, then Privacy Sandbox.",
+      "Turn off Ad measurement and topics."
+    ]
+  },
+  "com.google.android.gms.permission.AD_ID": {
+    "steps": [
+      "Open Settings.",
+      "Tap Google (or Privacy), then Ads.",
+      "Tap Delete advertising ID or toggle opt-out of ad personalization."
+    ]
+  }
 }

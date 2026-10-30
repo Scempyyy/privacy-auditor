@@ -56,8 +56,8 @@ export default function MethodologyPage() {
         <MethodCard
           number="03"
           icon={<IconActivity size={20} />}
-          title="Tracker signatures"
-          text="DEX bytecode class hierarchies are scanned for recognized third-party advertising frameworks, behavioral profiling engines, and telemetry SDKs. Signatures are categorized with individual and domain penalty caps."
+          title="Multi-DEX tracker signatures"
+          text="Multi-DEX bytecode hierarchies (classes.dex, classes2.dex, etc.) are scanned against 428 curated tracker signatures from Exodus Privacy. Detected trackers are classified as advertising, profiling, analytics, or crash reporting with deterministic domain penalty caps."
         />
         <MethodCard
           number="04"
@@ -73,12 +73,13 @@ export default function MethodologyPage() {
           <IconInfoCircle size={18} />
         </span>
         <div>
-          <h3>Static analysis has inherent limits</h3>
+          <h3>Static analysis has inherent limits & malware scan is not performed</h3>
           <p>
             Static analysis cannot observe live encrypted network traffic, dynamic code loading,
-            runtime server configurations, or actions taken after user authentication. A high score
-            reflects good manifest hygiene and minimal embedded tracking libraries, not an absolute
-            guarantee of data privacy.
+            runtime server configurations, or actions taken after user authentication. Furthermore,
+            Android Privacy Auditor is a privacy and manifest hygiene inspector—it does not perform
+            antivirus or anti-malware execution scanning. A high privacy score reflects proportionate
+            permissions and clean hygiene, not an absolute guarantee of safety or freedom from malware.
           </p>
         </div>
       </div>

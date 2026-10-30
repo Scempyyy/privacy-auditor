@@ -10,12 +10,14 @@ class StrictModel(BaseModel):
 
 class PermissionFinding(StrictModel):
     name: str
-    protection_level: str | None
-    risk: Literal["Critical", "High", "Moderate", "Low", "Unknown"]
-    category_classification: Literal["Expected", "Review", "Unusual", "Unknown"]
-    group: str | None
+    protection_level: str | None = None
+    risk: Literal["Critical", "High", "Moderate", "Low", "Unclassified", "Unknown"]
+    category_classification: Literal["Expected", "Review", "Unusual", "Unclassified", "Unknown"]
+    group: str | None = None
     explanation: str
-    source: str | None
+    source: str | None = None
+    is_runtime: bool | None = None
+    user_impact: str | None = None
 
 
 class TrackerFinding(StrictModel):
@@ -34,6 +36,8 @@ class SecurityFinding(StrictModel):
     id: str
     title: str
     detail: str
+    status: Literal["finding_detected", "checked_clean", "platform_default", "unassessed"] | None = None
+    severity: Literal["warning", "info", "clean"] | None = None
 
 
 class Deduction(StrictModel):
@@ -48,6 +52,15 @@ class RevokeStep(StrictModel):
     steps: list[str]
 
 
+class PermissionMetrics(StrictModel):
+    total_requested: int
+    classified: int
+    unclassified: int
+    needing_review: int
+    unusual: int
+    high_risk: int
+
+
 class AnalysisReport(StrictModel):
     scan_id: str
     package_name: str
@@ -59,6 +72,7 @@ class AnalysisReport(StrictModel):
     compile_sdk: int | None
     category: str
     permissions: list[PermissionFinding]
+    permission_metrics: PermissionMetrics | None = None
     trackers: list[TrackerFinding]
     security_findings: list[SecurityFinding]
     score: int = Field(ge=0, le=100)

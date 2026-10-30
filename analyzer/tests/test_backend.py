@@ -157,3 +157,57 @@ def test_temporary_upload_removed_after_analysis(monkeypatch: pytest.MonkeyPatch
             await analyzer.analyze_upload(upload, "utility")
     asyncio.run(exercise())
     assert seen and not seen[0].exists()
+
+
+def test_unclassified_permission_handling() -> None:
+    findings = [
+        {"name": "custom.permission.INTERNAL_SYNC", "protection_level": None, "risk": "Unclassified",
+         "category_classification": "Unclassified", "group": None, "explanation": "Unclassified", "source": None},
+        {"name": "android.permission.INTERNET", "protection_level": "normal", "risk": "Low",
+         "category_classification": "Expected", "group": "NETWORK", "explanation": "Internet", "source": "https://android.com"},
+    ]
+    score, grade, deductions = calculate_score(findings, [], 34, False, False)
+    assert score == 100
+    assert grade == "Good"
+    assert len(deductions) == 0
+
+
+def test_app_store_category_and_comparison() -> None:
+    from app.knowledge import load_knowledge
+    kb = load_knowledge()
+    assert "app_store" in kb["categories"]
+    app_store_rules = kb["categories"]["app_store"]["permissions"]
+    social_rules = kb["categories"]["social"]["permissions"]
+
+    # In app_store, REQUEST_INSTALL_PACKAGES is Expected
+    assert app_store_rules.get("android.permission.REQUEST_INSTALL_PACKAGES") == "Expected"
+    # In social, REQUEST_INSTALL_PACKAGES is Unusual
+    assert social_rules.get("android.permission.REQUEST_INSTALL_PACKAGES") == "Unusual"
+
+
+def test_exodus_tracker_dataset_validity() -> None:
+    from app.knowledge import load_knowledge
+    kb = load_knowledge()
+    trackers = kb["trackers"]
+    assert len(trackers) >= 400
+    valid_categories = {"advertising", "profiling", "analytics", "crash_reporting"}
+    for tid, t in trackers.items():
+        assert "name" in t and len(t["name"]) > 0
+        assert "signature" in t and len(t["signature"]) > 0
+        assert t["category"] in valid_categories
+        assert "Exodus Privacy" in t["attribution"]
+        assert "AGPL" in t.get("license", "") or "CC" in t.get("license", "")
+
+
+def test_permissions_dataset_validity() -> None:
+    from app.knowledge import load_knowledge
+    kb = load_knowledge()
+    perms = kb["permissions"]
+    assert len(perms) >= 80
+    valid_risks = {"Critical", "High", "Moderate", "Low", "Unclassified"}
+    for name, p in perms.items():
+        assert p["risk"] in valid_risks
+        assert "explanation" in p and len(p["explanation"]) > 10
+        assert "protection_level" in p
+        assert "source" in p
+        assert p.get("verified_at") == "2026-10-30"

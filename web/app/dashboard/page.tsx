@@ -97,7 +97,7 @@ export default function DashboardPage() {
         <div className="history-heading">
           <div>
             <h2>Recent scans</h2>
-            <p>Audited APKs are recorded locally in your browser storage.</p>
+            <p>Audited APK metadata and reports are stored solely in your local browser storage. No APK binaries are ever stored.</p>
           </div>
           <span className="demo-tag">
             <span /> DEMO AVAILABLE

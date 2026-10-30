@@ -4,33 +4,50 @@
  */
 
 export type AppCategory =
+  | "app_store"
   | "social"
+  | "messaging"
   | "finance"
   | "navigation"
   | "camera"
   | "photo_video"
-  | "messaging"
   | "weather"
+  | "shopping"
+  | "gaming"
+  | "health_fitness"
+  | "education"
+  | "productivity"
+  | "communication"
   | "utility";
 
 export const CATEGORY_OPTIONS: { value: AppCategory; label: string }[] = [
-  { value: "social", label: "Social & Communication" },
+  { value: "app_store", label: "App Store / Marketplace" },
+  { value: "social", label: "Social Networking" },
+  { value: "messaging", label: "Messaging & Chat" },
   { value: "finance", label: "Finance & Banking" },
   { value: "navigation", label: "Navigation & Maps" },
   { value: "camera", label: "Camera & Imaging" },
   { value: "photo_video", label: "Photo & Video Editing" },
-  { value: "messaging", label: "Messaging & Chat" },
   { value: "weather", label: "Weather Forecasts" },
+  { value: "shopping", label: "Shopping & E-Commerce" },
+  { value: "gaming", label: "Gaming" },
+  { value: "health_fitness", label: "Health & Fitness" },
+  { value: "education", label: "Education & Learning" },
+  { value: "productivity", label: "Productivity & Office" },
+  { value: "communication", label: "Communication & Calling" },
   { value: "utility", label: "Utilities & Tools" },
 ];
 
 export type PermissionFinding = {
   name: string;
-  risk: "Critical" | "High" | "Moderate" | "Low" | "Unknown";
-  category_classification: "Expected" | "Review" | "Unusual" | "Unknown";
+  protection_level?: string | null;
+  risk: "Critical" | "High" | "Moderate" | "Low" | "Unclassified" | "Unknown";
+  category_classification: "Expected" | "Review" | "Unusual" | "Unclassified" | "Unknown";
   group: string | null;
   explanation: string;
   source: string | null;
+  is_runtime?: boolean | null;
+  user_impact?: string | null;
 };
 
 export type TrackerFinding = {
@@ -49,6 +66,8 @@ export type SecurityFinding = {
   id: string;
   title: string;
   detail: string;
+  status?: "finding_detected" | "checked_clean" | "platform_default" | "unassessed";
+  severity?: "warning" | "info" | "clean";
 };
 
 export type Deduction = {
@@ -63,6 +82,15 @@ export type RevokeStep = {
   steps: string[];
 };
 
+export type PermissionMetrics = {
+  total_requested: number;
+  classified: number;
+  unclassified: number;
+  needing_review: number;
+  unusual: number;
+  high_risk: number;
+};
+
 export type AnalysisReport = {
   scan_id: string;
   package_name: string;
@@ -74,6 +102,7 @@ export type AnalysisReport = {
   compile_sdk: number | null;
   category: string;
   permissions: PermissionFinding[];
+  permission_metrics?: PermissionMetrics;
   trackers: TrackerFinding[];
   security_findings: SecurityFinding[];
   score: number;
@@ -172,6 +201,14 @@ export const DEMO_REPORT: AnalysisReport = {
   is_demo: true,
   score: 68,
   grade: "Fair",
+  permission_metrics: {
+    total_requested: 5,
+    classified: 5,
+    unclassified: 0,
+    needing_review: 3,
+    unusual: 1,
+    high_risk: 4,
+  },
   permissions: [
     {
       name: "android.permission.INTERNET",

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -8,15 +8,20 @@ import {
   IconAlertTriangle,
   IconArrowDown,
   IconArrowRight,
+  IconBugOff,
+  IconCheck,
   IconCircleCheck,
   IconClock,
   IconCloudOff,
   IconFileSearch,
+  IconHelpCircle,
   IconInfoCircle,
   IconLock,
+  IconSearch,
   IconShieldCheck,
+  IconX,
 } from "@tabler/icons-react";
-import { AnalysisReport, DEMO_REPORT } from "@/lib/api";
+import { AnalysisReport, DEMO_REPORT, PermissionFinding } from "@/lib/api";
 import { getActiveReport, getScanById } from "@/lib/history";
 
 function ReportView() {
@@ -26,6 +31,10 @@ function ReportView() {
 
   const [report, setReport] = useState<AnalysisReport | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Permission search & filter state
+  const [permSearch, setPermSearch] = useState("");
+  const [permFilter, setPermFilter] = useState<"all" | "unusual" | "review" | "expected" | "unclassified">("all");
 
   useEffect(() => {
     if (demoParam === "true" || scanIdParam === "demo" || scanIdParam === DEMO_REPORT.scan_id) {
@@ -48,6 +57,33 @@ function ReportView() {
     setReport(active);
     setLoading(false);
   }, [demoParam, scanIdParam]);
+
+  // Derived filtered permissions
+  const filteredPermissions = useMemo(() => {
+    if (!report) return [];
+    return report.permissions.filter((p) => {
+      const matchesSearch =
+        p.name.toLowerCase().includes(permSearch.toLowerCase()) ||
+        p.explanation.toLowerCase().includes(permSearch.toLowerCase()) ||
+        (p.group && p.group.toLowerCase().includes(permSearch.toLowerCase()));
+
+      if (!matchesSearch) return false;
+
+      if (permFilter === "unusual") {
+        return p.category_classification === "Unusual";
+      }
+      if (permFilter === "review") {
+        return p.category_classification === "Review";
+      }
+      if (permFilter === "expected") {
+        return p.category_classification === "Expected";
+      }
+      if (permFilter === "unclassified") {
+        return p.category_classification === "Unclassified" || p.risk === "Unclassified";
+      }
+      return true;
+    });
+  }, [report, permSearch, permFilter]);
 
   if (loading) {
     return (
@@ -89,6 +125,27 @@ function ReportView() {
   const isDemo = report.is_demo === true || report.scan_id === DEMO_REPORT.scan_id;
   const gradeTone = report.grade.toLowerCase();
 
+  // Consistent metric numbers
+  const metrics = report.permission_metrics || {
+    total_requested: report.permissions.length,
+    classified: report.permissions.filter((p) => p.risk !== "Unclassified").length,
+    unclassified: report.permissions.filter((p) => p.risk === "Unclassified").length,
+    needing_review: report.permissions.filter((p) => p.category_classification === "Review").length,
+    unusual: report.permissions.filter((p) => p.category_classification === "Unusual").length,
+    high_risk: report.permissions.filter((p) => p.risk === "Critical" || p.risk === "High").length,
+  };
+
+  // Domain deduction sums
+  const permissionDeductionTotal = report.deductions
+    .filter((d) => d.domain === "permissions")
+    .reduce((sum, d) => sum + d.points, 0);
+  const trackerDeductionTotal = report.deductions
+    .filter((d) => d.domain === "trackers")
+    .reduce((sum, d) => sum + d.points, 0);
+  const securityDeductionTotal = report.deductions
+    .filter((d) => d.domain === "security")
+    .reduce((sum, d) => sum + d.points, 0);
+
   return (
     <section className="page-wrap report-page">
       {/* Prominent Demo Banner */}
@@ -106,7 +163,7 @@ function ReportView() {
         <div>
           <div className="eyebrow">
             <span className="eyebrow-dot" />
-            PRIVACY ANALYSIS REPORT
+            STATIC PRIVACY & AUDIT REPORT
           </div>
           <h1>{report.app_name || report.package_name}</h1>
           <p className="package-line">
@@ -137,46 +194,99 @@ function ReportView() {
             </div>
           </div>
           <div className="score-copy">
-            <span className={`grade-pill ${gradeTone}`}>{report.grade} privacy</span>
+            <span className={`grade-pill ${gradeTone}`}>{report.grade} Privacy Posture</span>
             <h2>
               {report.grade === "Good"
-                ? "A clean, considered permission profile."
+                ? "Considered, proportionate permission demands."
                 : report.grade === "Fair"
-                ? "Some permissions and tracker libraries warrant review."
-                : "Elevated privacy risk with dangerous permission demands."}
+                ? "Some permissions or tracker SDKs warrant user attention."
+                : report.grade === "Risky"
+                ? "Elevated privacy exposure with sensitive permissions or tracking."
+                : "Excessive or disproportionate privacy demands."}
             </h2>
-            <p>
-              Calculated using the deterministic scoring model based on declared permissions,
-              category expectations, recognized tracker SDK signatures, and security hygiene.
+            <p className="text-xs text-slate-400 leading-relaxed">
+              Heuristic privacy assessment calculated from declared manifest permissions, category baseline expectations, recognized embedded tracker SDK signatures, and security hygiene.
             </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                Permissions: −{permissionDeductionTotal.toFixed(1)} pts
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                Trackers: −{trackerDeductionTotal.toFixed(1)} pts
+              </span>
+              <span className="text-[11px] px-2 py-0.5 rounded bg-slate-900 border border-slate-800 text-slate-300">
+                Security Hygiene: −{securityDeductionTotal.toFixed(1)} pts
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Risk Breakdown Summary */}
         <div className="risk-summary">
-          <h3>Risk breakdown</h3>
+          <h3>Inspection metrics</h3>
           <RiskMeter
-            label="Flagged permissions"
-            value={
-              report.permissions.filter(
-                (p) => p.category_classification === "Unusual" || p.risk === "Critical"
-              ).length
-            }
-            max={Math.max(report.permissions.length, 1)}
+            label="High-risk permissions"
+            value={metrics.high_risk}
+            max={Math.max(metrics.total_requested, 1)}
             tone="purple"
           />
           <RiskMeter
-            label="Detected trackers"
+            label="Unusual for category"
+            value={metrics.unusual}
+            max={Math.max(metrics.total_requested, 1)}
+            tone="purple"
+          />
+          <RiskMeter
+            label="Detected tracker SDKs"
             value={report.trackers.length}
             max={Math.max(report.trackers.length, 5)}
             tone="cyan"
           />
           <RiskMeter
-            label="Security findings"
-            value={report.security_findings.length}
-            max={Math.max(report.security_findings.length, 3)}
+            label="Unclassified permissions"
+            value={metrics.unclassified}
+            max={Math.max(metrics.total_requested, 1)}
             tone="amber"
           />
+        </div>
+      </div>
+
+      {/* Assessment Scope Notice (Including explicit Malware Scan Notice) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 my-4">
+        <div className="p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/50">
+          <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 mb-1">
+            <IconLock size={15} /> 1. Permission Review
+          </div>
+          <p className="text-[11px] text-slate-400 leading-snug">
+            {metrics.classified} classified, {metrics.unclassified} unclassified, {metrics.unusual} unusual.
+          </p>
+        </div>
+
+        <div className="p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/50">
+          <div className="flex items-center gap-2 text-xs font-semibold text-cyan-400 mb-1">
+            <IconActivity size={15} /> 2. Tracker Detection
+          </div>
+          <p className="text-[11px] text-slate-400 leading-snug">
+            {report.trackers.length} matching signatures from 428 curated Exodus records.
+          </p>
+        </div>
+
+        <div className="p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/50">
+          <div className="flex items-center gap-2 text-xs font-semibold text-emerald-400 mb-1">
+            <IconShieldCheck size={15} /> 3. Security Hygiene
+          </div>
+          <p className="text-[11px] text-slate-400 leading-snug">
+            Target SDK {report.target_sdk ?? "N/A"}, cleartext & debuggable verified.
+          </p>
+        </div>
+
+        <div className="p-3.5 rounded-lg border border-amber-800/50 bg-amber-950/20">
+          <div className="flex items-center gap-2 text-xs font-semibold text-amber-400 mb-1">
+            <IconBugOff size={15} /> 4. Malware Status
+          </div>
+          <p className="text-[11px] text-amber-200/80 leading-snug font-medium">
+            Malware scan not performed. Static auditor only; not an antivirus engine.
+          </p>
         </div>
       </div>
 
@@ -188,8 +298,10 @@ function ReportView() {
           value={`${report.version_name || "N/A"} (${report.version_code ?? "N/A"})`}
         />
         <MetaItem
-          label="Target SDK"
-          value={`Min ${report.min_sdk ?? "—"} · Target ${report.target_sdk ?? "—"}`}
+          label="SDK Levels"
+          value={`Min ${report.min_sdk ?? "—"} · Target ${report.target_sdk ?? "—"}${
+            report.compile_sdk ? ` · Compile ${report.compile_sdk}` : ""
+          }`}
         />
         <MetaItem label="Scan ID" value={report.scan_id} />
       </div>
@@ -205,31 +317,153 @@ function ReportView() {
               </span>
               <h2>Declared permissions</h2>
             </div>
-            <span className="count-badge">{report.permissions.length}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-slate-400">
+                {filteredPermissions.length} of {report.permissions.length} shown
+              </span>
+              <span className="count-badge">{report.permissions.length}</span>
+            </div>
           </div>
+
           <p className="section-subtitle">
-            Permissions extracted from AndroidManifest.xml and evaluated against baseline expectations
-            for the {report.category} category.
+            Permissions declared in AndroidManifest.xml. Sensitivity depends on capability access, runtime vs install-time protection, and functional fit with the <b>{report.category}</b> category.
           </p>
 
+          {/* Search & Filter Controls */}
+          <div className="my-3 space-y-2">
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-500">
+                <IconSearch size={14} />
+              </span>
+              <input
+                type="text"
+                placeholder="Search declared permissions..."
+                value={permSearch}
+                onChange={(e) => setPermSearch(e.target.value)}
+                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-md text-slate-200 placeholder:text-slate-500 focus:outline-none focus:border-purple-500"
+              />
+              {permSearch && (
+                <button
+                  type="button"
+                  onClick={() => setPermSearch("")}
+                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-500 hover:text-slate-300"
+                >
+                  <IconX size={14} />
+                </button>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <button
+                type="button"
+                onClick={() => setPermFilter("all")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                  permFilter === "all"
+                    ? "bg-purple-600/30 text-purple-300 border border-purple-500/50"
+                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                All ({report.permissions.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPermFilter("unusual")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                  permFilter === "unusual"
+                    ? "bg-purple-600/30 text-purple-300 border border-purple-500/50"
+                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                Unusual ({metrics.unusual})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPermFilter("review")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                  permFilter === "review"
+                    ? "bg-amber-600/30 text-amber-300 border border-amber-500/50"
+                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                Review ({metrics.needing_review})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPermFilter("expected")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                  permFilter === "expected"
+                    ? "bg-emerald-600/30 text-emerald-300 border border-emerald-500/50"
+                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                Expected ({report.permissions.filter((p) => p.category_classification === "Expected").length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setPermFilter("unclassified")}
+                className={`px-2.5 py-1 rounded text-[11px] font-medium transition ${
+                  permFilter === "unclassified"
+                    ? "bg-slate-700/60 text-slate-200 border border-slate-600"
+                    : "bg-slate-900/60 text-slate-400 border border-slate-800 hover:text-slate-200"
+                }`}
+              >
+                Unclassified ({metrics.unclassified})
+              </button>
+            </div>
+          </div>
+
           <div className="permission-list">
-            {report.permissions.map((perm) => (
-              <div className="permission-item" key={perm.name}>
-                <div className="permission-top">
-                  <span className={`risk-mark ${perm.risk}`} />
-                  <b>{perm.group || perm.name.replace("android.permission.", "")}</b>
-                  <span
-                    className={`permission-state ${
-                      perm.category_classification.toLowerCase()
-                    }`}
-                  >
-                    {perm.category_classification}
-                  </span>
-                </div>
-                <code>{perm.name}</code>
-                <p>{perm.explanation}</p>
+            {filteredPermissions.length > 0 ? (
+              filteredPermissions.map((perm) => {
+                const isUnclass =
+                  perm.category_classification === "Unclassified" ||
+                  perm.risk === "Unclassified" ||
+                  perm.risk === "Unknown";
+
+                return (
+                  <div className="permission-item" key={perm.name}>
+                    <div className="permission-top">
+                      <span className={`risk-mark ${isUnclass ? "Unclassified" : perm.risk}`} />
+                      <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                        <b className="truncate">
+                          {perm.group || perm.name.replace("android.permission.", "")}
+                        </b>
+                        {perm.is_runtime && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-950/80 text-purple-300 border border-purple-800/60 font-mono">
+                            runtime
+                          </span>
+                        )}
+                        {perm.protection_level && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400 font-mono">
+                            {perm.protection_level}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={`permission-state ${
+                          isUnclass
+                            ? "bg-slate-800/80 text-slate-300 border border-slate-700"
+                            : perm.category_classification.toLowerCase()
+                        }`}
+                      >
+                        {perm.category_classification}
+                      </span>
+                    </div>
+                    <code>{perm.name}</code>
+                    <p className="mt-1">{perm.explanation}</p>
+                    {perm.user_impact && (
+                      <p className="text-[11px] text-slate-400 mt-1 italic">
+                        Impact: {perm.user_impact}
+                      </p>
+                    )}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="py-6 text-center text-xs text-slate-500">
+                No permissions match the current search or filter criteria.
               </div>
-            ))}
+            )}
           </div>
         </section>
 
@@ -255,21 +489,29 @@ function ReportView() {
                       <IconActivity size={16} />
                     </span>
                     <div>
-                      <b>{t.name}</b>
-                      <small>
-                        {t.category} · {t.attribution || t.evidence}
+                      <div className="flex items-center gap-2">
+                        <b>{t.name}</b>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/60">
+                          {t.category}
+                        </span>
+                      </div>
+                      <small className="block mt-1 font-mono text-[10px] text-slate-400">
+                        Evidence: {t.evidence}
+                      </small>
+                      <small className="block text-[10px] text-slate-500">
+                        {t.attribution}
                       </small>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="mt-3 p-3 rounded-lg border border-slate-800/80 bg-slate-900/40 text-xs">
+              <div className="mt-3 p-3.5 rounded-lg border border-slate-800/80 bg-slate-900/40 text-xs">
                 <div className="flex items-center gap-2 text-emerald-400 font-medium mb-1">
                   <IconCircleCheck size={16} /> No curated tracker signatures matched
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
-                  Static inspection did not match any known signatures from the curated database. Note that this is not proof that the application contains no trackers, telemetry, or analytics, as custom, modified, or obfuscated SDKs cannot be detected statically.
+                  No signatures from the current curated database matched this APK. This does not prove the application has no tracking or telemetry. Database contains 428 curated tracker signatures from Exodus Privacy (updated Oct 30, 2026).
                 </p>
               </div>
             )}
@@ -288,16 +530,27 @@ function ReportView() {
             </div>
 
             {report.security_findings.length > 0 ? (
-              <div>
-                {report.security_findings.map((finding) => (
-                  <div className="finding-item" key={finding.id || finding.title}>
-                    <span className="severity-tag medium">Hygiene</span>
-                    <div>
-                      <b>{finding.title}</b>
-                      <p>{finding.detail}</p>
+              <div className="space-y-2.5">
+                {report.security_findings.map((finding) => {
+                  const isClean = finding.severity === "clean" || finding.status === "checked_clean";
+                  const isWarn = finding.severity === "warning" || finding.status === "finding_detected";
+                  
+                  return (
+                    <div className="finding-item" key={finding.id || finding.title}>
+                      <span
+                        className={`severity-tag ${
+                          isClean ? "low bg-emerald-950 text-emerald-300 border-emerald-800/60" : isWarn ? "high" : "medium"
+                        }`}
+                      >
+                        {isClean ? "Pass" : isWarn ? "Notice" : "Info"}
+                      </span>
+                      <div>
+                        <b>{finding.title}</b>
+                        <p>{finding.detail}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="no-findings">
@@ -330,7 +583,7 @@ function ReportView() {
                   <b>[{deduction.domain.toUpperCase()}]</b> {deduction.item} —{" "}
                   {deduction.explanation}
                 </span>
-                <b>−{deduction.points} pts</b>
+                <b>−{deduction.points.toFixed(deduction.points % 1 === 0 ? 0 : 2)} pts</b>
               </div>
             ))
           ) : (
@@ -357,18 +610,24 @@ function ReportView() {
             Step-by-step guidance to revoke invasive permissions in Android device settings:
           </p>
           <div className="space-y-4">
-            {report.revoke_steps.map((item, idx) => (
-              <div key={idx}>
-                <b className="text-[10px] text-slate-200 block mb-1">
-                  {item.permission.replace("android.permission.", "")}
-                </b>
-                <ol className="revoke-list">
-                  {item.steps.map((step, sIdx) => (
-                    <li key={sIdx}>{step}</li>
-                  ))}
-                </ol>
+            {report.revoke_steps.length > 0 ? (
+              report.revoke_steps.map((item, idx) => (
+                <div key={idx}>
+                  <b className="text-[10px] text-slate-200 block mb-1">
+                    {item.permission.replace("android.permission.", "")}
+                  </b>
+                  <ol className="revoke-list">
+                    {item.steps.map((step, sIdx) => (
+                      <li key={sIdx}>{step}</li>
+                    ))}
+                  </ol>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-slate-400 py-2">
+                No high-risk permissions requiring revocation steps were detected.
               </div>
-            ))}
+            )}
           </div>
         </section>
 
@@ -379,12 +638,14 @@ function ReportView() {
               <span className="section-icon">
                 <IconInfoCircle size={17} />
               </span>
-              <h2>Analysis limitations</h2>
+              <h2>Analysis limitations & disclaimers</h2>
             </div>
           </div>
-          <ul>
+          <ul className="space-y-2">
             {report.limitations.map((limitation, idx) => (
-              <li key={idx}>{limitation}</li>
+              <li key={idx} className="text-xs text-slate-400 leading-relaxed">
+                {limitation}
+              </li>
             ))}
           </ul>
         </section>
