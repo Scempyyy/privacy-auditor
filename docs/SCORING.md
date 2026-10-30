@@ -91,6 +91,8 @@ $$\mathbf{S = \min(\sum \text{Hygiene Penalties}, 15)}$$
 
 ## 5. Worked Example Calculation
 
+Implementation note: fractional totals are rounded to the nearest integer with exact half values rounded upward (`ROUND_HALF_UP`). The domain caps apply to the charged, itemised deductions; reported deduction points therefore sum to the score penalty.
+
 Consider an e-commerce app with:
 - Declared permissions:
   - `ACCESS_FINE_LOCATION` (High: 6, Review: $\times 1.0$) = 6.0

@@ -35,3 +35,10 @@
 - **Module 4**: Pre-Scanned Application Library Fixtures (10+ Reports).
 - **Module 5**: Full Frontend Dashboard & Report Viewer Implementation.
 - **Module 6**: End-to-End Integration, Testing, and Packaging.
+# Backend implementation
+
+- Implemented `GET /health` and multipart `POST /api/v1/analyze` with strict response models.
+- Added bounded, temporary upload processing and ZIP/APK structure validation; no archive extraction or APK execution occurs.
+- Added local permission/category/revocation knowledge and deterministic scoring modules.
+- Tracker knowledge remains intentionally empty until verified signatures and attributions are provided.
+- Backend verification command: `cd analyzer && .venv/bin/pytest`.
