@@ -170,6 +170,28 @@ A pre-built Android companion APK is attached to GitHub Releases:
 
 ---
 
+## 👥 Contributors & Activity Graph
+
+<div align="center">
+
+[![Contributors](https://img.shields.io/github/contributors/Scempyyy/privacy-auditor?style=for-the-badge&color=0284C7)](https://github.com/Scempyyy/privacy-auditor/graphs/contributors)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/Scempyyy/privacy-auditor?style=for-the-badge&color=10B981)](https://github.com/Scempyyy/privacy-auditor/pulse)
+[![Last Commit](https://img.shields.io/github/last-commit/Scempyyy/privacy-auditor?style=for-the-badge&color=6366F1)](https://github.com/Scempyyy/privacy-auditor/commits/main)
+
+<br/><br/>
+
+<a href="https://github.com/Scempyyy/privacy-auditor/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=Scempyyy/privacy-auditor" alt="Privacy Auditor Contributors" />
+</a>
+
+<br/><br/>
+
+[📊 View Full Repository Insights & Contribution Graph →](https://github.com/Scempyyy/privacy-auditor/graphs/contributors)
+
+</div>
+
+---
+
 ## 📄 License
 
 This project is licensed under the [MIT License](LICENSE).
