@@ -1,124 +1,58 @@
+<div align="center">
+
 # Android Privacy Auditor
+### Understand what an Android app asks for—and why.
 
-An open-source, local-first static analysis platform and companion interface for Android application packages (`.apk` files). Android Privacy Auditor inspects declared permissions, detects embedded third-party tracking/advertising SDKs, assesses security hygiene flags, and computes an explainable, deterministic 0–100 privacy score.
+A local-first static analysis tool for APK privacy and security signals.
 
-> A risk score is an analytical signal, not proof that an app is malicious or safe.
-
----
-
-## Project Direction & Core Capabilities
-
-- **Purely Static APK Ingestion**: Parses application metadata, `AndroidManifest.xml`, and DEX class hierarchies without running or installing the APK.
-- **Category-Aware Permission Auditing**: Classifies requested Android permissions against baseline app category expectations (Expected, Review, Unusual) with deduplication.
-- **Tracker & Ad SDK Detection**: Scans compiled bytecode against a curated database of advertising, profiling, identification, and analytics signatures.
-- **Deterministic 0–100 Scoring Model**: Fully transparent mathematical scoring heuristic; every deduction is itemized with an explicit explanation. Zero LLM hallucinations in the scoring loop.
-- **Remediation Guides**: Provides actionable step-by-step instructions for users to revoke invasive permissions in Android settings.
-- **100% Offline & Private**: Zero cloud telemetry, no external exfiltration, and runs entirely on `localhost`.
-- **Technology Direction**: Kotlin / Jetpack Compose Android client · FastAPI Python static analyzer · Next.js / TypeScript / Tailwind CSS companion interface.
+</div>
 
 ---
 
-## Project Structure
+## Overview
+Android Privacy Auditor examines APK metadata and compiled structure without installing or executing the app. It identifies declared permissions, known tracker/ad SDK signatures, and selected security-hygiene indicators, then produces an explainable privacy score.
 
-```
-android-privacy-auditor/
-├── web/                         # Next.js frontend (App Router, TypeScript, Tailwind CSS)
-│   ├── app/                     # Page routes & layout
-│   ├── package.json             # Frontend dependencies
-│   └── tsconfig.json            # Strict TypeScript configuration
-├── analyzer/                    # FastAPI backend service
-│   ├── app/
-│   │   ├── __init__.py
-│   │   └── main.py              # FastAPI app & endpoints (e.g. GET /health)
-│   ├── tests/
-│   │   ├── __init__.py
-│   │   └── test_health.py       # Automated backend test suite
-│   ├── requirements.txt         # Pinned Python dependencies
-│   └── .python-version          # Python version specification (3.14)
-├── data/                        # Version-controlled knowledge base
-│   ├── library/                 # Pre-scanned audit reports (JSON fixtures)
-│   ├── permissions.json         # Android permissions catalog & risk levels
-│   ├── categories.json          # App categories & permission expectations
-│   ├── trackers.json            # Tracker signatures & functional categories
-│   └── revoke_steps.json        # Android permission revocation guides
-├── docs/                        # Architectural & scoring documentation
-│   ├── SPEC.md                  # Functional MVP specification
-│   ├── SCORING.md               # Deterministic scoring mathematical model
-│   ├── ARCHITECTURE.md          # Architecture, data flow & security boundaries
-│   └── PROGRESS.md              # Milestone tracking & progress checklist
-├── scripts/                     # Local developer & dataset utility scripts
-├── demo/                        # Synthetic APK fixtures & demo assets
-├── AGENTS.md                    # Developer and AI agent guidelines
-├── README.md                    # Project documentation
-├── .gitignore                   # Comprehensive Git ignore rules
-└── .env.example                 # Sanitized environment variable template
+> A score is an analytical signal—not proof that an app is malicious or safe.
+
+## Key capabilities
+- Static APK ingestion and manifest inspection
+- Category-aware permission classification
+- Tracker and advertising SDK signature matching
+- Deterministic, itemized 0–100 scoring
+- Permission-remediation guidance
+- Local analysis with no cloud telemetry in the analyzer workflow
+
+## Architecture
+- **Analyzer:** Python · FastAPI
+- **Companion interface:** Next.js · TypeScript · Tailwind CSS
+- **Android direction:** Kotlin · Jetpack Compose
+
+## Local development
+
+### Analyzer
+```bash
+cd analyzer
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+PYTHONPATH=. pytest -v
+uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
----
+### Web interface
+```bash
+cd web
+npm install
+npm run build
+npm run dev
+```
 
-## Getting Started (Linux)
+Then open `http://localhost:3000`.
 
-### Prerequisites
-- **Python**: 3.11+
-- **Node.js**: 20+
-- **Git**: 2.40+
+## Privacy & safety notes
+- APKs are analyzed statically; they are not run or installed.
+- Findings can be incomplete or produce false positives.
+- The score is transparent and heuristic-based; review the underlying findings.
 
----
-
-### Backend Service (`analyzer/`)
-
-1. **Navigate to the analyzer directory**:
-   ```bash
-   cd analyzer
-   ```
-
-2. **Create and activate a virtual environment**:
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   ```
-
-3. **Install dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run the automated test suite**:
-   ```bash
-   PYTHONPATH=. pytest -v
-   ```
-
-5. **Start the FastAPI development server**:
-   ```bash
-   uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-   ```
-
----
-
-### Frontend Application (`web/`)
-
-1. **Navigate to the web directory**:
-   ```bash
-   cd web
-   ```
-
-2. **Install dependencies & build**:
-   ```bash
-   npm install
-   npm run build
-   ```
-
-3. **Start the Next.js development server**:
-   ```bash
-   npm run dev
-   ```
-   Open [http://localhost:3000](http://localhost:3000) in your browser.
-
----
-
-## Privacy & Security Guarantees
-
-1. **No Cloud Dependencies**: All analysis runs completely on your local workstation.
-2. **Never Execute APKs**: Uploaded APK packages are never executed or installed.
-3. **No External Telemetry**: Next.js telemetry is disabled, and the backend has zero external outbound connections.
-4. **Transparent Deductions**: No opaque artificial intelligence determines privacy scores.
+## Documentation
+See `docs/` for the specification, scoring model, architecture, and project progress.
