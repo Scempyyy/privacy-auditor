@@ -1,10 +1,12 @@
 # Android Privacy Auditor
 
-An open-source, local-first static analysis tool for Android application packages (`.apk` files). Android Privacy Auditor inspects declared permissions, detects embedded third-party tracking/advertising SDKs, assesses security hygiene flags, and computes an explainable, deterministic 0–100 privacy score.
+An open-source, local-first static analysis platform and companion interface for Android application packages (`.apk` files). Android Privacy Auditor inspects declared permissions, detects embedded third-party tracking/advertising SDKs, assesses security hygiene flags, and computes an explainable, deterministic 0–100 privacy score.
+
+> A risk score is an analytical signal, not proof that an app is malicious or safe.
 
 ---
 
-## Key Features
+## Project Direction & Core Capabilities
 
 - **Purely Static APK Ingestion**: Parses application metadata, `AndroidManifest.xml`, and DEX class hierarchies without running or installing the APK.
 - **Category-Aware Permission Auditing**: Classifies requested Android permissions against baseline app category expectations (Expected, Review, Unusual) with deduplication.
@@ -12,6 +14,7 @@ An open-source, local-first static analysis tool for Android application package
 - **Deterministic 0–100 Scoring Model**: Fully transparent mathematical scoring heuristic; every deduction is itemized with an explicit explanation. Zero LLM hallucinations in the scoring loop.
 - **Remediation Guides**: Provides actionable step-by-step instructions for users to revoke invasive permissions in Android settings.
 - **100% Offline & Private**: Zero cloud telemetry, no external exfiltration, and runs entirely on `localhost`.
+- **Technology Direction**: Kotlin / Jetpack Compose Android client · FastAPI Python static analyzer · Next.js / TypeScript / Tailwind CSS companion interface.
 
 ---
 
@@ -53,13 +56,12 @@ android-privacy-auditor/
 
 ---
 
-## Getting Started (Arch Linux / Linux)
+## Getting Started (Linux)
 
 ### Prerequisites
-
-- **Python**: 3.11+ (Tested on Python 3.14.8)
-- **Node.js**: 20+ (Tested on Node.js v26.10.0, npm 11.19.1)
-- **Git**: 2.40+ (Tested on Git 2.56.0)
+- **Python**: 3.11+
+- **Node.js**: 20+
+- **Git**: 2.40+
 
 ---
 
@@ -91,12 +93,6 @@ android-privacy-auditor/
    uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
    ```
 
-6. **Verify health endpoint**:
-   ```bash
-   curl http://127.0.0.1:8000/health
-   # Returns: {"status":"ok"}
-   ```
-
 ---
 
 ### Frontend Application (`web/`)
@@ -106,17 +102,13 @@ android-privacy-auditor/
    cd web
    ```
 
-2. **Install dependencies**:
+2. **Install dependencies & build**:
    ```bash
    npm install
-   ```
-
-3. **Run the production build verification**:
-   ```bash
    npm run build
    ```
 
-4. **Start the Next.js development server**:
+3. **Start the Next.js development server**:
    ```bash
    npm run dev
    ```
@@ -129,10 +121,4 @@ android-privacy-auditor/
 1. **No Cloud Dependencies**: All analysis runs completely on your local workstation.
 2. **Never Execute APKs**: Uploaded APK packages are never executed or installed.
 3. **No External Telemetry**: Next.js telemetry is disabled, and the backend has zero external outbound connections.
-4. **Transparent Deductions**: No opaque artificial intelligence or black-box algorithms determine privacy scores.
-
----
-
-## Contributing & Agent Guidelines
-
-All human developers and AI assistants must review [AGENTS.md](file:///home/admin/android-privacy-auditor/AGENTS.md) and [docs/ARCHITECTURE.md](file:///home/admin/android-privacy-auditor/docs/ARCHITECTURE.md) before modifying files.
+4. **Transparent Deductions**: No opaque artificial intelligence determines privacy scores.
